@@ -43,12 +43,16 @@ class RoutingService
             $currentPos  = $depot;
 
             while ($unvisited !== []) {
-                ['index' => $idx, 'item' => $nearest] = $this->findNearest($currentPos, $unvisited);
-                $volume = (float) ($nearest['volume'] ?? 0);
+                $capaciteRestante = (float)($truck['volume_max'] ?? 100) - $totalVolume;
 
-                if ($totalVolume + $volume > (float) ($truck['volume_max'] ?? 100)) {
+                $result = $this->findNearestFitting($currentPos, $unvisited, $capaciteRestante);
+
+                if ($result === null) {
                     break;
                 }
+
+                ['index' => $idx, 'item' => $nearest] = $result;
+                $volume = (float) ($nearest['volume'] ?? 0);
 
                 $points[]    = $nearest;
                 $totalVolume += $volume;
@@ -86,12 +90,7 @@ class RoutingService
                 continue;
             }
 
-            $waypoints = [$route['agency'], ...$route['points'], $route['agency']];
-            $coords    = implode(';', array_map(
-                fn(array $p): string => "{$p['lon']},{$p['lat']}",
-                $waypoints
-            ));
-            $url = self::OSRM_URL . $coords . '?overview=full&geometries=geojson';
+            $url = $this->buildOsrmUrl($route['agency'], $route['points']);
 
             $ch = curl_init($url);
             curl_setopt_array($ch, [
@@ -152,13 +151,7 @@ class RoutingService
             return null;
         }
 
-        $waypoints = [$agency, ...$points, $agency];
-        $coords    = implode(';', array_map(
-            fn(array $p): string => "{$p['lon']},{$p['lat']}",
-            $waypoints
-        ));
-
-        $url = self::OSRM_URL . $coords . '?overview=full&geometries=geojson';
+        $url = $this->buildOsrmUrl($agency, $points);
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -186,6 +179,42 @@ class RoutingService
             'distance' => (float) $data['routes'][0]['distance'],
             'duration' => (float) $data['routes'][0]['duration'],
         ];
+    }
+
+    private function buildOsrmUrl(array $agency, array $points): string
+    {
+        $waypoints = [$agency, ...$points, $agency];
+        $coords = implode(';', array_map(
+            fn(array $p): string => "{$p['lon']},{$p['lat']}",
+            $waypoints
+        ));
+        return self::OSRM_URL . $coords . '?overview=full&geometries=geojson';
+    }
+
+    private function findNearestFitting(array $origin, array $candidates, float $maxVolume): ?array
+    {
+        $minDist    = PHP_FLOAT_MAX;
+        $nearestIdx = null;
+
+        foreach ($candidates as $idx => $candidate) {
+            if ((float) ($candidate['volume'] ?? 0) > $maxVolume) {
+                continue;
+            }
+            $dist = $this->haversine(
+                (float) $origin['lat'], (float) $origin['lon'],
+                (float) $candidate['lat'], (float) $candidate['lon']
+            );
+            if ($dist < $minDist) {
+                $minDist    = $dist;
+                $nearestIdx = $idx;
+            }
+        }
+
+        if ($nearestIdx === null) {
+            return null;
+        }
+
+        return ['index' => $nearestIdx, 'item' => $candidates[$nearestIdx]];
     }
 
     private function findNearest(array $origin, array $candidates): array

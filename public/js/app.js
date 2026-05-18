@@ -211,6 +211,7 @@ function moveStopUp(routeIndex, stopIndex) {
     [pts[stopIndex - 1], pts[stopIndex]] = [pts[stopIndex], pts[stopIndex - 1]];
     state.routes[routeIndex].modified = true;
     renderLegend();
+    renderMapState();
 }
 
 function moveStopDown(routeIndex, stopIndex) {
@@ -219,6 +220,7 @@ function moveStopDown(routeIndex, stopIndex) {
     [pts[stopIndex], pts[stopIndex + 1]] = [pts[stopIndex + 1], pts[stopIndex]];
     state.routes[routeIndex].modified = true;
     renderLegend();
+    renderMapState();
 }
 
 function assignUnassigned(unassignedIndex, routeIndex) {
@@ -259,6 +261,37 @@ async function recalculateRoute(index) {
 
 // ── Rendu principal ───────────────────────────────────────────────────
 
+function renderDepotMarkers() {
+    const agencyIcon = L.divIcon({
+        className: 'agency-icon',
+        html: '<div class="agency-marker">A</div>',
+        iconSize: [30, 30],
+    });
+    state.agencies.forEach(agency => {
+        L.marker([agency.lat, agency.lon], { icon: agencyIcon })
+            .bindPopup(`<b>Agence : ${escapeHtml(agency.id_nom)}</b>`)
+            .addTo(markersLayer);
+    });
+
+    const agencyCoords = new Set(state.agencies.map(a => `${a.lat},${a.lon}`));
+    const shownBases   = new Set();
+
+    state.trucks.forEach(truck => {
+        if (!truck.lat || !truck.lon) return;
+        const key = `${truck.lat},${truck.lon}`;
+        if (agencyCoords.has(key) || shownBases.has(key)) return;
+        shownBases.add(key);
+        const icon = L.divIcon({
+            className: 'agency-icon',
+            html: '<div class="agency-marker truck-base">🚛</div>',
+            iconSize: [34, 34],
+        });
+        L.marker([truck.lat, truck.lon], { icon })
+            .bindPopup(`<b>Base : ${escapeHtml(truck.id)}</b><br>${escapeHtml(truck.adresse || '')} ${escapeHtml(truck.ville || '')}`)
+            .addTo(markersLayer);
+    });
+}
+
 function renderAll() {
     document.getElementById('legend-section').hidden = false;
     renderLegend();
@@ -286,40 +319,7 @@ function renderMapState() {
 
     const editing = state.editingRoute;
 
-    // Agences fixes
-    const agencyIcon = L.divIcon({
-        className: 'agency-icon',
-        html: '<div class="agency-marker">A</div>',
-        iconSize: [30, 30],
-    });
-    state.agencies.forEach(agency => {
-        L.marker([agency.lat, agency.lon], { icon: agencyIcon })
-            .bindPopup(`<b>Agence : ${escapeHtml(agency.id_nom)}</b>`)
-            .addTo(markersLayer);
-    });
-
-    // Bases propres des camions (adresses qui ne sont pas des agences)
-    const agencyCoords = new Set(state.agencies.map(a => `${a.lat},${a.lon}`));
-    const shownBases   = new Set();
-
-    state.routes.forEach(route => {
-        if (route.agency.id_nom !== route.truck.id) return; // dépôt = agence, déjà affiché
-        const key = `${route.agency.lat},${route.agency.lon}`;
-        if (agencyCoords.has(key) || shownBases.has(key)) return;
-        shownBases.add(key);
-
-        const truckBaseIcon = L.divIcon({
-            className: 'agency-icon',
-            html: '<div class="agency-marker truck-base">🚛</div>',
-            iconSize: [34, 34],
-        });
-        L.marker([route.agency.lat, route.agency.lon], { icon: truckBaseIcon })
-            .bindPopup(
-                `<b>Base : ${escapeHtml(route.truck.id)}</b><br>` +
-                `${escapeHtml(route.agency.adresse || '')} ${escapeHtml(route.agency.ville || '')}`
-            )
-            .addTo(markersLayer);
-    });
+    renderDepotMarkers();
 
     // Tournées
     state.routes.forEach((route, index) => {
@@ -369,30 +369,7 @@ function renderMapState() {
 function refreshMarkers() {
     markersLayer.clearLayers();
 
-    const agencyIcon = L.divIcon({
-        className: 'agency-icon',
-        html: '<div class="agency-marker">A</div>',
-        iconSize: [30, 30],
-    });
-    state.agencies.forEach(agency => {
-        L.marker([agency.lat, agency.lon], { icon: agencyIcon })
-            .bindPopup(`<b>Agence : ${escapeHtml(agency.id_nom)}</b>`)
-            .addTo(markersLayer);
-    });
-
-    const agencyCoords = new Set(state.agencies.map(a => `${a.lat},${a.lon}`));
-    state.trucks.forEach(truck => {
-        if (!truck.lat || !truck.lon) return;
-        if (agencyCoords.has(`${truck.lat},${truck.lon}`)) return;
-        const icon = L.divIcon({
-            className: 'agency-icon',
-            html: '<div class="agency-marker truck-base">🚛</div>',
-            iconSize: [34, 34],
-        });
-        L.marker([truck.lat, truck.lon], { icon })
-            .bindPopup(`<b>Base : ${escapeHtml(truck.id)}</b><br>${escapeHtml(truck.adresse || '')} ${escapeHtml(truck.ville || '')}`)
-            .addTo(markersLayer);
-    });
+    renderDepotMarkers();
 
     state.clients.forEach(client => {
         L.circleMarker([client.lat, client.lon], {
@@ -609,6 +586,22 @@ function renderDataTable() {
 
 // ── Export CSV ────────────────────────────────────────────────────────
 
+function arraysToCsv(rows) {
+    return '﻿' + rows.map(row =>
+        row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+}
+
+function triggerDownload(csv, filename) {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href     = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
 function exportRouteCSV(index) {
     const route = state.routes[index];
     if (!route) return;
@@ -627,19 +620,8 @@ function exportRouteCSV(index) {
         ]);
     });
 
-    const csv  = '﻿' + rows.map(row =>
-        row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
-    ).join('\n');
-
-    const blob    = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url     = URL.createObjectURL(blob);
-    const link    = document.createElement('a');
     const truckId = (route.truck.id ?? 'camion').replace(/[^a-z0-9]/gi, '_');
-
-    link.href     = url;
-    link.download = `tournee_${truckId}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    triggerDownload(arraysToCsv(rows), `tournee_${truckId}.csv`);
 }
 
 function exportUnassignedCSV() {
@@ -656,17 +638,7 @@ function exportUnassignedCSV() {
         ]);
     });
 
-    const csv  = '﻿' + rows.map(row =>
-        row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
-    ).join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href     = url;
-    link.download = 'commandes_non_affectees.csv';
-    link.click();
-    URL.revokeObjectURL(url);
+    triggerDownload(arraysToCsv(rows), 'commandes_non_affectees.csv');
 }
 
 // ── Utilitaires ───────────────────────────────────────────────────────
@@ -718,7 +690,8 @@ function escapeHtml(value) {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 window.addEventListener('load', initMap);

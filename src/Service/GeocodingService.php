@@ -56,6 +56,95 @@ class GeocodingService
             return [];
         }
 
+        $csvContent = "adresse,code_postal,ville\n";
+        foreach ($items as $item) {
+            $csvContent .= implode(',', [
+                '"' . str_replace('"', '""', trim((string) ($item['adresse'] ?? ''))) . '"',
+                '"' . str_replace('"', '""', trim((string) ($item['code_postal'] ?? ''))) . '"',
+                '"' . str_replace('"', '""', trim((string) ($item['ville'] ?? ''))) . '"',
+            ]) . "\n";
+        }
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'geo');
+        file_put_contents($tmpPath, $csvContent);
+
+        $ch = curl_init(self::API_BATCH_URL);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => self::BATCH_TIMEOUT,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_USERAGENT      => 'Tourneo/1.0',
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => [
+                'data'    => new \CURLFile($tmpPath, 'text/csv', 'addresses.csv'),
+                'columns' => 'adresse',
+                'postcode' => 'code_postal',
+            ],
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_errno($ch);
+        curl_close($ch);
+        unlink($tmpPath);
+
+        if ($response === false || $curlError !== 0 || $httpCode !== 200) {
+            return $this->geocodeBatchParallel($items);
+        }
+
+        $handle = fopen('php://memory', 'r+');
+        fwrite($handle, $response);
+        rewind($handle);
+
+        $headers = fgetcsv($handle);
+        if ($headers === false) {
+            fclose($handle);
+            return $this->geocodeBatchParallel($items);
+        }
+
+        $headers = array_map('trim', $headers);
+        $latIdx  = array_search('latitude', $headers, true);
+        $lonIdx  = array_search('longitude', $headers, true);
+        $postcodeIdx = array_search('result_postcode', $headers, true);
+        $cityIdx     = array_search('result_city', $headers, true);
+
+        if ($latIdx === false || $lonIdx === false) {
+            fclose($handle);
+            return $this->geocodeBatchParallel($items);
+        }
+
+        $results = array_fill(0, count($items), ['lat' => null, 'lon' => null]);
+        $index   = 0;
+
+        while (($row = fgetcsv($handle)) !== false) {
+            if (!isset($items[$index])) {
+                break;
+            }
+
+            $lat = isset($row[$latIdx]) ? trim($row[$latIdx]) : '';
+            $lon = isset($row[$lonIdx]) ? trim($row[$lonIdx]) : '';
+
+            if ($lat !== '' && $lon !== '') {
+                $properties = [
+                    'postcode' => $postcodeIdx !== false ? trim($row[$postcodeIdx] ?? '') : '',
+                    'city'     => $cityIdx !== false ? trim($row[$cityIdx] ?? '') : '',
+                ];
+
+                if ($this->matchesExpectedLocation($properties, $items[$index])) {
+                    $results[$index] = ['lat' => (float) $lat, 'lon' => (float) $lon];
+                }
+            }
+
+            $index++;
+        }
+
+        fclose($handle);
+
+        return $results;
+    }
+
+    private function geocodeBatchParallel(array $items): array
+    {
         $multiHandle = curl_multi_init();
         $handles     = [];
 

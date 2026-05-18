@@ -24,6 +24,10 @@ class ApiController
             $this->jsonError('Fichier de flotte manquant ou invalide.');
         }
 
+        if ($_FILES['fleet_file']['size'] > 5 * 1024 * 1024) {
+            $this->jsonError('Fichier trop volumineux (max 5 Mo).', 413);
+        }
+
         $content = file_get_contents($_FILES['fleet_file']['tmp_name']);
         $rows    = $this->csvParser->parse($content);
 
@@ -120,6 +124,10 @@ class ApiController
 
         if (!isset($_FILES['orders_file']) || $_FILES['orders_file']['error'] !== UPLOAD_ERR_OK) {
             $this->jsonError('Fichier de commandes manquant ou invalide.');
+        }
+
+        if ($_FILES['orders_file']['size'] > 5 * 1024 * 1024) {
+            $this->jsonError('Fichier trop volumineux (max 5 Mo).', 413);
         }
 
         $content = file_get_contents($_FILES['orders_file']['tmp_name']);
