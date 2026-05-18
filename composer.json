@@ -1,0 +1,16 @@
+{
+    "name": "tourneo/app",
+    "description": "Planificateur de tournées de livraison",
+    "type": "project",
+    "require": {
+        "php": ">=8.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Tourneo\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

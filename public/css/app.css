@@ -1,0 +1,730 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+:root {
+    --sidebar-bg:    #1a1a1a;
+    --sidebar-text:  #e0e0e0;
+    --accent:        #3498db;
+    --accent-hover:  #2980b9;
+    --danger:        #e74c3c;
+    --success:       #2ecc71;
+    --border:        #333;
+    --surface:       #252525;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow: hidden;
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────── */
+
+.app-container {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+}
+
+#map {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
+
+.sidebar {
+    width: 350px;
+    flex-shrink: 0;
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, .5);
+    z-index: 1000;
+    overflow-y: auto;
+}
+
+.sidebar h1 {
+    font-size: 1.5rem;
+    margin: 0 0 20px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+.sidebar h1 span {
+    font-weight: 300;
+    color: white;
+}
+
+.section {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.hint {
+    margin-top: auto;
+    font-size: 0.7rem;
+    opacity: 0.5;
+}
+
+/* ── Config grid ─────────────────────────────────────────────────────── */
+
+.config-title {
+    margin: 0 0 15px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.config-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.config-item label {
+    font-size: 0.7rem;
+    color: #888;
+}
+
+.config-item input {
+    background: #222;
+    border: 1px solid #444;
+    color: white;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    width: 100%;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+
+.btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    text-align: center;
+}
+
+.btn-primary {
+    background-color: var(--accent);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+}
+
+.btn-primary:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+}
+
+.btn-outline {
+    background-color: transparent;
+    border: 2px solid var(--accent);
+    color: var(--accent);
+}
+
+.btn-outline:hover:not(:disabled) {
+    background-color: var(--accent);
+    color: white;
+}
+
+.btn-outline:disabled {
+    border-color: #555;
+    color: #555;
+    cursor: not-allowed;
+}
+
+/* Hidden file inputs */
+#fleet-file,
+#orders-file {
+    display: none;
+}
+
+/* ── Stats ───────────────────────────────────────────────────────────── */
+
+.stats {
+    margin: 10px 0 0;
+    font-size: 0.9rem;
+}
+
+.stats span {
+    font-weight: bold;
+    color: var(--success);
+}
+
+/* ── Legend ──────────────────────────────────────────────────────────── */
+
+.legend-title {
+    margin: 0 0 15px;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.route-item {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 12px;
+    padding: 12px;
+    background: var(--surface);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    border-left: 4px solid transparent;
+}
+
+.route-item.editing {
+    background: #2d2d2d;
+    box-shadow: 0 0 0 1px #444;
+}
+
+.route-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+/* ── Bouton édition ─────────────────────────────────────────────────── */
+
+.btn-edit {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    font-size: 0.8rem;
+    padding: 2px 5px;
+    border-radius: 3px;
+    transition: background-color 0.2s, color 0.2s;
+    margin-right: 4px;
+}
+
+.btn-edit:hover,
+.btn-edit.active {
+    background: #444;
+    color: white;
+}
+
+/* ── Badge "modifié" ─────────────────────────────────────────────────── */
+
+.badge-modified {
+    color: #f1c40f;
+    font-size: 0.65rem;
+    vertical-align: middle;
+}
+
+/* ── Liste des arrêts ────────────────────────────────────────────────── */
+
+.stop-list {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+
+.stop-depot {
+    font-size: 0.72rem;
+    color: #777;
+    padding: 3px 0;
+    font-style: italic;
+}
+
+.stop-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 6px;
+    border-radius: 4px;
+    background: #1e1e1e;
+    margin-bottom: 3px;
+    font-size: 0.78rem;
+    user-select: none;
+}
+
+.stop-item:hover {
+    background: #2a2a2a;
+}
+
+.stop-order {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    background: #444;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: #ddd;
+}
+
+.stop-name {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stop-vol {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: #888;
+}
+
+.stop-controls {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+.stop-btn {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: #333;
+    border: none;
+    border-radius: 3px;
+    color: #bbb;
+    font-size: 0.65rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.stop-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: white;
+}
+
+.stop-btn:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+}
+
+.stop-btn.stop-remove:hover:not(:disabled) {
+    background: var(--danger);
+}
+
+.stop-move {
+    height: 22px;
+    background: #333;
+    border: none;
+    border-radius: 3px;
+    color: #bbb;
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 0 3px;
+    max-width: 90px;
+}
+
+.stop-move:hover {
+    background: #444;
+}
+
+.stop-actions {
+    margin-top: 10px;
+}
+
+.btn-sm {
+    padding: 7px 12px;
+    font-size: 0.8rem;
+    margin-bottom: 0;
+}
+
+/* ── Section non-affectés ────────────────────────────────────────────── */
+
+.unassigned-section {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px dashed #555;
+}
+
+.unassigned-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.unassigned-title {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #f1c40f;
+    font-weight: 600;
+}
+
+.unassigned-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    background: #201e10;
+    border-left: 3px solid #f1c40f;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    font-size: 0.78rem;
+}
+
+.stop-assign {
+    flex-shrink: 0;
+    height: 22px;
+    background: #333;
+    border: none;
+    border-radius: 3px;
+    color: #bbb;
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.stop-assign:hover {
+    background: var(--accent);
+    color: white;
+}
+
+.route-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.route-info {
+    flex-grow: 1;
+    font-weight: 600;
+}
+
+.btn-export {
+    background: #444;
+    border: none;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.btn-export:hover {
+    background-color: var(--accent);
+}
+
+.route-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    font-size: 0.75rem;
+    color: #aaa;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid var(--border);
+}
+
+.route-cost {
+    grid-column: span 2;
+    color: var(--success);
+    font-weight: 600;
+    margin-top: 5px;
+}
+
+.total-summary {
+    margin-top: 20px;
+    padding: 15px;
+    background: var(--accent);
+    color: white;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.total-summary b {
+    display: block;
+    font-size: 1.1rem;
+    margin-top: 5px;
+}
+
+/* ── Map markers ─────────────────────────────────────────────────────── */
+
+.agency-marker {
+    background: #000;
+    color: #fff;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.agency-marker.truck-base {
+    background: #2c5f8a;
+    font-size: 16px;
+    width: 34px;
+    height: 34px;
+}
+
+/* ── Log container ───────────────────────────────────────────────────── */
+
+.log-container {
+    margin-top: 10px;
+    font-family: monospace;
+    font-size: 0.75rem;
+    max-height: 150px;
+    overflow-y: auto;
+    background: #000;
+    padding: 10px;
+    border-radius: 4px;
+    color: #aaa;
+}
+
+.log-success { color: var(--success); }
+.log-error   { color: var(--danger); }
+
+/* ── Modal ───────────────────────────────────────────────────────────── */
+
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background-color: rgba(0, 0, 0, .8);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 5%;
+}
+
+/* The [hidden] attribute hides the modal; we override display here when visible */
+.modal[hidden] {
+    display: none;
+}
+
+.modal-content {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    width: 90%;
+    max-width: 1000px;
+    max-height: 80vh;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+}
+
+.close-modal:hover {
+    color: white;
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+#data-table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #ddd;
+    font-size: 0.9rem;
+}
+
+th,
+td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+th {
+    background-color: #111;
+    color: var(--accent);
+    position: sticky;
+    top: 0;
+}
+
+tr:hover {
+    background-color: #333;
+}
+
+/* ── Loading overlay ─────────────────────────────────────────────────── */
+
+#loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    z-index: 4000;
+    color: white;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(255, 255, 255, .3);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Scrollbars ──────────────────────────────────────────────────────── */
+
+.sidebar::-webkit-scrollbar,
+.modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track,
+.modal-body::-webkit-scrollbar-track {
+    background: #111;
+}
+
+.sidebar::-webkit-scrollbar-thumb,
+.modal-body::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 3px;
+}
+
+/* ── Mobile menu ─────────────────────────────────────────────────────── */
+
+.menu-toggle {
+    display: none;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 2001;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+}
+
+.menu-toggle span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: var(--accent);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.menu-toggle.active span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.menu-toggle.active span:nth-child(2) { opacity: 0; }
+.menu-toggle.active span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+.mobile-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .5);
+    z-index: 999;
+}
+
+@media (max-width: 768px) {
+    .menu-toggle {
+        display: flex;
+    }
+
+    .sidebar {
+        position: fixed;
+        left: -350px;
+        top: 0;
+        height: 100vh;
+        transition: left 0.3s ease;
+        box-shadow: 5px 0 15px rgba(0, 0, 0, .5);
+    }
+
+    .sidebar.active {
+        left: 0;
+    }
+
+    .mobile-overlay.active {
+        display: block;
+    }
+
+    .app-container {
+        flex-direction: column;
+    }
+
+    #map {
+        width: 100%;
+        height: 100vh;
+    }
+}

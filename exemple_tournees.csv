@@ -1,0 +1,101 @@
+nom_client,adresse,ville,code_postal,volume
+Client 001,10 La Canebière,Marseille,13001,4.5
+Client 002,25 Rue de la République,Marseille,13001,12.3
+Client 003,5 Quai du Port,Marseille,13001,8.1
+Client 004,110 Boulevard Michelet,Marseille,13008,14.2
+Client 005,42 Avenue du Prado,Marseille,13008,3.9
+Client 006,15 Cours Mirabeau,Aix-en-Provence,13100,6.7
+Client 007,8 Rue Gaston de Saporta,Aix-en-Provence,13100,2.1
+Client 008,50 Avenue de l'Europe,Aix-en-Provence,13100,11.5
+Client 009,22 Boulevard de la République,Aix-en-Provence,13100,5.4
+Client 010,12 Boulevard Nostradamus,Salon-de-Provence,13300,9.8
+Client 011,3 Cours Victor Hugo,Salon-de-Provence,13300,7.2
+Client 012,85 Avenue Georges Guynemer,Salon-de-Provence,13300,13.1
+Client 013,1 Rue de l'Horloge,Salon-de-Provence,13300,1.5
+Client 014,30 Avenue du 8 Mai 1945,Marignane,13700,10.4
+Client 015,12 Boulevard de la République,Marignane,13700,4.8
+Client 016,5 Quai des Girondins,Martigues,13500,12.9
+Client 017,20 Avenue de la Paix,Martigues,13500,6.3
+Client 018,45 Avenue Roger Salengro,Aubagne,13400,8.7
+Client 019,10 Cours Voltaire,Aubagne,13400,3.2
+Client 020,55 Avenue Aristide Briand,Istres,13800,11.2
+Client 021,12 Boulevard de la République,Istres,13800,5.9
+Client 022,30 Avenue de la Libération,Gardanne,13120,7.6
+Client 023,15 Avenue Victor Hugo,Les Pennes-Mirabeau,13170,9.1
+Client 024,120 Rue Paradis,Marseille,13006,13.5
+Client 025,45 Avenue de Mazargues,Marseille,13008,4.2
+Client 026,18 Boulevard Périer,Marseille,13008,6.8
+Client 027,33 Promenade Georges Pompidou,Marseille,13007,11.9
+Client 028,2 Rue de Verdun,Marignane,13700,2.5
+Client 029,14 Boulevard de la Libération,Martigues,13500,14.7
+Client 030,8 Boulevard Jean Jaurès,Aubagne,13400,5.1
+Client 031,25 Rue de l'Équerre,Istres,13800,3.8
+Client 032,10 Boulevard Carnot,Gardanne,13120,12.4
+Client 033,5 Boulevard de la Cascade,Les Pennes-Mirabeau,13170,7.3
+Client 034,12 Chemin des Boeufs,Les Pennes-Mirabeau,13170,1.9
+Client 035,60 Rue de la République,Marseille,13002,10.6
+Client 036,15 Quai du Port,Marseille,13002,4.7
+Client 037,88 Boulevard Michelet,Marseille,13009,13.2
+Client 038,12 Avenue du Prado,Marseille,13006,6.1
+Client 039,45 Cours Mirabeau,Aix-en-Provence,13100,8.9
+Client 040,12 Rue Gaston de Saporta,Aix-en-Provence,13100,3.4
+Client 041,110 Avenue de l'Europe,Aix-en-Provence,13090,14.8
+Client 042,5 Boulevard de la République,Aix-en-Provence,13100,5.7
+Client 043,33 Boulevard Nostradamus,Salon-de-Provence,13300,11.1
+Client 044,18 Cours Victor Hugo,Salon-de-Provence,13300,6.5
+Client 045,12 Avenue Georges Guynemer,Salon-de-Provence,13300,9.4
+Client 046,5 Rue de l'Horloge,Salon-de-Provence,13300,2.8
+Client 047,88 Avenue du 8 Mai 1945,Marignane,13700,12.1
+Client 048,42 Boulevard de la République,Marignane,13700,4.3
+Client 049,25 Quai des Girondins,Martigues,13500,13.7
+Client 050,10 Avenue de la Paix,Martigues,13500,7.8
+Client 051,12 Avenue Roger Salengro,Aubagne,13400,10.2
+Client 052,55 Cours Voltaire,Aubagne,13400,3.6
+Client 053,18 Avenue Aristide Briand,Istres,13800,12.6
+Client 054,45 Boulevard de la République,Istres,13800,6.4
+Client 055,12 Avenue de la Libération,Gardanne,13120,8.3
+Client 056,33 Avenue Victor Hugo,Les Pennes-Mirabeau,13170,4.9
+Client 057,150 Rue Paradis,Marseille,13006,14.1
+Client 058,12 Avenue de Mazargues,Marseille,13008,5.2
+Client 059,45 Boulevard Périer,Marseille,13008,9.7
+Client 060,10 Promenade Georges Pompidou,Marseille,13007,3.1
+Client 061,55 Rue de Verdun,Marignane,13700,11.8
+Client 062,18 Boulevard de la Libération,Martigues,13500,6.9
+Client 063,42 Boulevard Jean Jaurès,Aubagne,13400,13.4
+Client 064,10 Rue de l'Équerre,Istres,13800,2.7
+Client 065,55 Boulevard Carnot,Gardanne,13120,10.9
+Client 066,18 Boulevard de la Cascade,Les Pennes-Mirabeau,13170,5.6
+Client 067,42 Chemin des Boeufs,Les Pennes-Mirabeau,13170,12.8
+Client 068,10 Rue de la République,Marseille,13001,4.1
+Client 069,55 Quai du Port,Marseille,13001,9.3
+Client 070,18 Boulevard Michelet,Marseille,13008,6.2
+Client 071,42 Avenue du Prado,Marseille,13008,13.9
+Client 072,10 Cours Mirabeau,Aix-en-Provence,13100,3.7
+Client 073,55 Rue Gaston de Saporta,Aix-en-Provence,13100,11.4
+Client 074,18 Avenue de l'Europe,Aix-en-Provence,13100,5.8
+Client 075,42 Boulevard de la République,Aix-en-Provence,13100,8.1
+Client 076,10 Boulevard Nostradamus,Salon-de-Provence,13300,4.4
+Client 077,55 Cours Victor Hugo,Salon-de-Provence,13300,12.7
+Client 078,18 Avenue Georges Guynemer,Salon-de-Provence,13300,7.1
+Client 079,42 Rue de l'Horloge,Salon-de-Provence,13300,1.8
+Client 080,10 Avenue du 8 Mai 1945,Marignane,13700,10.5
+Client 081,55 Boulevard de la République,Marignane,13700,3.9
+Client 082,18 Quai des Girondins,Martigues,13500,13.3
+Client 083,42 Avenue de la Paix,Martigues,13500,6.6
+Client 084,10 Avenue Roger Salengro,Aubagne,13400,9.5
+Client 085,55 Cours Voltaire,Aubagne,13400,2.9
+Client 086,18 Avenue Aristide Briand,Istres,13800,12.2
+Client 087,42 Boulevard de la République,Istres,13800,4.6
+Client 088,10 Avenue de la Libération,Gardanne,13120,11.7
+Client 089,55 Avenue Victor Hugo,Les Pennes-Mirabeau,13170,7.4
+Client 090,18 Rue Paradis,Marseille,13001,14.5
+Client 091,42 Avenue de Mazargues,Marseille,13008,3.3
+Client 092,10 Boulevard Périer,Marseille,13008,8.8
+Client 093,55 Promenade Georges Pompidou,Marseille,13007,5.5
+Client 094,18 Rue de Verdun,Marignane,13700,12.5
+Client 095,42 Boulevard de la Libération,Martigues,13500,6.7
+Client 096,10 Boulevard Jean Jaurès,Aubagne,13400,10.1
+Client 097,55 Rue de l'Équerre,Istres,13800,4.2
+Client 098,18 Boulevard Carnot,Gardanne,13120,13.6
+Client 099,42 Boulevard de la Cascade,Les Pennes-Mirabeau,13170,2.4
+Client 100,10 Chemin des Boeufs,Les Pennes-Mirabeau,13170,11.3
