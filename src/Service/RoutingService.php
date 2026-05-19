@@ -10,6 +10,8 @@ class RoutingService
     private const EARTH_RADIUS     = 6371.0;
     private const AVG_SPEED_KMH    = 60.0;
     private const SERVICE_TIME_MIN = 15.0;
+    private const MAX_DRIVE_MIN    = 270.0; // EU 561/2006 : 4h30 max avant pause
+    private const BREAK_MIN        = 45.0;
 
     private int $routeTimeout = 30;
 
@@ -31,6 +33,7 @@ class RoutingService
         $avgSpeed    = max(10.0, (float) ($config['avgSpeed']    ?? self::AVG_SPEED_KMH));
         $serviceTime = max(0.0,  (float) ($config['serviceTime'] ?? self::SERVICE_TIME_MIN));
         $startTime   = $this->parseStartTime((string) ($config['startTime'] ?? '08:00'));
+        $applyBreaks = (bool) ($config['applyBreaks'] ?? false);
 
         while ($unvisited !== [] && $availableTrucks !== []) {
             $truck = array_shift($availableTrucks);
@@ -56,6 +59,7 @@ class RoutingService
             $currentPos     = $depot;
             $poidsMax       = (float) ($truck['poids_max'] ?? 0);
             $currentTimeMin = $startTime;
+            $drivingTimeMin = 0.0;
 
             while ($unvisited !== []) {
                 $capaciteRestante = (float)($truck['volume_max'] ?? 100) - $totalVolume;
@@ -70,9 +74,31 @@ class RoutingService
                     break;
                 }
 
-                ['index' => $idx, 'item' => $nearest, 'arrival_min' => $arrivalMin] = $result;
+                ['index' => $idx, 'item' => $nearest, 'arrival_min' => $arrivalMin, 'dist' => $dist] = $result;
                 $volume = (float) ($nearest['volume'] ?? 0);
                 $poids  = (float) ($nearest['poids_kg'] ?? 0);
+
+                // Pause réglementaire EU 561/2006 : 4h30 de conduite max
+                if ($applyBreaks) {
+                    $travelMin       = ($dist / $avgSpeed) * 60.0;
+                    $drivingTimeMin += $travelMin;
+                    if ($drivingTimeMin >= self::MAX_DRIVE_MIN) {
+                        $points[] = [
+                            'nom_client'   => 'Pause réglementaire',
+                            'adresse'      => '',
+                            'ville'        => '',
+                            'is_break'     => true,
+                            'duration_min' => (int) self::BREAK_MIN,
+                            'lat'          => (float) $currentPos['lat'],
+                            'lon'          => (float) $currentPos['lon'],
+                            'volume'       => 0.0,
+                            'poids_kg'     => 0.0,
+                            'arrival_min'  => (int) round($currentTimeMin),
+                        ];
+                        $currentTimeMin += self::BREAK_MIN;
+                        $drivingTimeMin  = 0.0;
+                    }
+                }
 
                 $nearest['arrival_min'] = $arrivalMin;
 
@@ -277,9 +303,16 @@ class RoutingService
         float $maxPoids = 0.0, float $currentPoids = 0.0,
         float $currentTimeMin = 0.0, float $avgSpeedKmh = self::AVG_SPEED_KMH
     ): ?array {
+        // Tracker séparément les candidats urgents (priorité 1) et les autres
+        $minDistP1    = PHP_FLOAT_MAX;
+        $nearestIdxP1 = null;
+        $nearestArrP1 = 0.0;
+        $nearestDistP1 = 0.0;
+
         $minDist    = PHP_FLOAT_MAX;
         $nearestIdx = null;
         $nearestArr = 0.0;
+        $nearestDist = 0.0;
 
         foreach ($candidates as $idx => $candidate) {
             if ((float) ($candidate['volume'] ?? 0) > $maxVolume) {
@@ -301,18 +334,44 @@ class RoutingService
                 continue;
             }
 
-            if ($dist < $minDist) {
-                $minDist    = $dist;
-                $nearestIdx = $idx;
-                $nearestArr = $arrivalMin;
+            $priority = (int) ($candidate['priorite'] ?? 2);
+            if ($priority === 1) {
+                if ($dist < $minDistP1) {
+                    $minDistP1     = $dist;
+                    $nearestIdxP1  = $idx;
+                    $nearestArrP1  = $arrivalMin;
+                    $nearestDistP1 = $dist;
+                }
+            } else {
+                if ($dist < $minDist) {
+                    $minDist     = $dist;
+                    $nearestIdx  = $idx;
+                    $nearestArr  = $arrivalMin;
+                    $nearestDist = $dist;
+                }
             }
+        }
+
+        // Priorité aux urgents s'il en existe
+        if ($nearestIdxP1 !== null) {
+            return [
+                'index'       => $nearestIdxP1,
+                'item'        => $candidates[$nearestIdxP1],
+                'arrival_min' => (int) round($nearestArrP1),
+                'dist'        => $nearestDistP1,
+            ];
         }
 
         if ($nearestIdx === null) {
             return null;
         }
 
-        return ['index' => $nearestIdx, 'item' => $candidates[$nearestIdx], 'arrival_min' => (int) round($nearestArr)];
+        return [
+            'index'       => $nearestIdx,
+            'item'        => $candidates[$nearestIdx],
+            'arrival_min' => (int) round($nearestArr),
+            'dist'        => $nearestDist,
+        ];
     }
 
     private function findNearest(array $origin, array $candidates): array

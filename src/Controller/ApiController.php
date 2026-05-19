@@ -6,6 +6,7 @@ namespace Tourneo\Controller;
 
 use Tourneo\Service\CsvParser;
 use Tourneo\Service\GeocodingService;
+use Tourneo\Service\PrintService;
 use Tourneo\Service\RoutingService;
 
 class ApiController
@@ -14,6 +15,7 @@ class ApiController
         private readonly CsvParser        $csvParser,
         private readonly GeocodingService $geocodingService,
         private readonly RoutingService   $routingService,
+        private readonly PrintService     $printService,
     ) {}
 
     public function handleFleet(): void
@@ -93,15 +95,19 @@ class ApiController
 
         foreach ($truckRows as $i => $row) {
             $truck = [
-                'id'                  => trim($row['id_nom'] ?? ''),
-                'volume_max'          => (float) ($row['volume_max'] ?? 100),
-                'poids_max'           => (float) ($row['poids_max'] ?? 0),
-                'consommation_l100km' => (float) ($row['consommation_l100km'] ?? 0),
-                'adresse'             => trim($row['adresse'] ?? ''),
-                'ville'               => trim($row['ville'] ?? ''),
-                'code_postal'         => trim($row['code_postal'] ?? ''),
-                'lat'                 => null,
-                'lon'                 => null,
+                'id'                    => trim($row['id_nom'] ?? ''),
+                'volume_max'            => (float) ($row['volume_max'] ?? 100),
+                'poids_max'             => (float) ($row['poids_max'] ?? 0),
+                'consommation_l100km'   => (float) ($row['consommation_l100km'] ?? 0),
+                'adresse'               => trim($row['adresse'] ?? ''),
+                'ville'                 => trim($row['ville'] ?? ''),
+                'code_postal'           => trim($row['code_postal'] ?? ''),
+                'chauffeur'             => trim($row['chauffeur']             ?? ''),
+                'tel_chauffeur'         => trim($row['tel_chauffeur']         ?? ''),
+                'heure_debut_chauffeur' => trim($row['heure_debut_chauffeur'] ?? ''),
+                'heure_fin_chauffeur'   => trim($row['heure_fin_chauffeur']   ?? ''),
+                'lat'                   => null,
+                'lon'                   => null,
             ];
 
             if (isset($truckCoordsMap[$i])) {
@@ -165,6 +171,7 @@ class ApiController
                     'poids_kg'    => (float) ($row['poids_kg'] ?? $row['poids'] ?? 0),
                     'tw_start'    => $this->parseTime($row['heure_debut'] ?? ''),
                     'tw_end'      => $this->parseTime($row['heure_fin']   ?? ''),
+                    'priorite'    => max(1, min(3, (int) ($row['priorite'] ?? 2))),
                     'lat'         => $c['lat'],
                     'lon'         => $c['lon'],
                 ];
@@ -234,6 +241,33 @@ class ApiController
         unset($route);
 
         $this->json($result);
+    }
+
+    public function handleExportRoute(): void
+    {
+        $this->requireMethod('POST');
+
+        // Accepte soit un formulaire POST (champ 'payload') soit un corps JSON
+        $raw = $_POST['payload'] ?? file_get_contents('php://input');
+        $input = json_decode($raw, true);
+
+        if (!is_array($input)) {
+            $this->jsonError('Corps de requête invalide.');
+        }
+
+        $route  = $input['route']  ?? [];
+        $config = $input['config'] ?? [];
+
+        if (empty($route)) {
+            $this->jsonError('Route manquante.');
+        }
+
+        $html = $this->printService->generateRouteHtml($route, $config);
+        http_response_code(200);
+        header('Content-Type: text/html; charset=utf-8');
+        header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src https://fonts.gstatic.com; script-src 'unsafe-inline'; img-src data:; connect-src 'none'");
+        echo $html;
+        exit;
     }
 
     public function handleRecalculate(): void

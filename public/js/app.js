@@ -80,6 +80,12 @@ function setupUI() {
         e.target.value = '';
     });
     document.getElementById('export-all-btn').addEventListener('click', exportAllRoutesCSV);
+    document.getElementById('save-template-btn').addEventListener('click', () => {
+        const name = document.getElementById('template-name').value;
+        saveTemplate(name);
+        document.getElementById('template-name').value = '';
+    });
+    renderTemplates();
 }
 
 // ── Uploads ───────────────────────────────────────────────────────────
@@ -313,6 +319,32 @@ function renderAll() {
     document.getElementById('legend-section').hidden = false;
     renderLegend();
     renderMapState();
+    renderDashboard();
+}
+
+function renderDashboard() {
+    const dashboard = document.getElementById('dashboard');
+    if (state.routes.length === 0) { dashboard.hidden = true; return; }
+    dashboard.hidden = false;
+
+    const trucksUsed  = state.routes.length;
+    const trucksTotal = state.trucks.length;
+
+    const avgFill = state.routes.reduce((sum, r) => {
+        const cap = r.truck.volume_max || 1;
+        return sum + (r.totalVolume / cap) * 100;
+    }, 0) / trucksUsed;
+
+    const totalDist = state.routes.reduce((s, r) => s + (r.distance  || 0), 0);
+    const totalCost = state.routes.reduce((s, r) => s + (r.totalCost || 0), 0);
+
+    const totalStops = state.routes.reduce((s, r) => s + r.points.filter(p => !p.is_break).length, 0);
+
+    document.getElementById('kpi-trucks').textContent   = `${trucksUsed}/${trucksTotal}`;
+    document.getElementById('kpi-fill').textContent     = `${avgFill.toFixed(0)}%`;
+    document.getElementById('kpi-distance').textContent = `${totalDist.toFixed(0)} km`;
+    document.getElementById('kpi-cost').textContent     = `${totalCost.toFixed(0)} €`;
+    document.getElementById('kpi-stops').textContent    = `${totalStops}/${totalStops + state.unassigned.length}`;
 }
 
 function renderLegend() {
@@ -376,13 +408,13 @@ function renderMapState() {
         });
     });
 
-    // Points non affectés (gris)
+    // Points non affectés (rouge vif)
     state.unassigned.forEach(point => {
         L.circleMarker([point.lat, point.lon], {
-            radius: 8, fillColor: '#888', color: '#fff',
-            weight: 2, opacity: 0.6, fillOpacity: 0.6,
+            radius: 9, fillColor: '#ff1f1f', color: '#fff',
+            weight: 2.5, opacity: 1, fillOpacity: 0.95,
         })
-        .bindPopup(`<b>${escapeHtml(point.nom_client)}</b><br><i>Non affecté</i>`)
+        .bindPopup(`<b>${escapeHtml(point.nom_client)}</b><br><span style="color:#ff4444">⚠ Non affecté</span>`)
         .addTo(markersLayer);
     });
 }
@@ -439,15 +471,26 @@ function buildRouteCard(route, index) {
         ? `${route.truck.consommation_l100km} L/100km`
         : 'conso défaut';
 
+    const driverHtml = route.truck.chauffeur
+        ? `<div class="driver-info">👤 ${escapeHtml(route.truck.chauffeur)}` +
+          (route.truck.tel_chauffeur ? ` — ${escapeHtml(route.truck.tel_chauffeur)}` : '') +
+          (route.truck.heure_debut_chauffeur ? ` (${escapeHtml(route.truck.heure_debut_chauffeur)}–${escapeHtml(route.truck.heure_fin_chauffeur)})` : '') +
+          `</div>`
+        : '';
+
+    const realStops = route.points.filter(p => !p.is_break).length;
+
     card.innerHTML =
         `<div class="route-header">` +
             `<span class="route-color" style="background:${color}" aria-hidden="true"></span>` +
             `<span class="route-info">${depotLabel}</span>` +
+            `<button class="btn-print-route" title="Feuille de route imprimable">🖨</button>` +
             `<button class="btn-edit${isEditing ? ' active' : ''}" title="${isEditing ? 'Fermer' : 'Modifier la tournée'}">✏️</button>` +
             `<button class="btn-export" title="Exporter en CSV">📥</button>` +
         `</div>` +
+        driverHtml +
         `<div class="route-stats">` +
-            `<div>📦 ${route.points.length} pts | ${route.totalVolume.toFixed(1)}/${route.truck.volume_max} m³` +
+            `<div>📦 ${realStops} pts | ${route.totalVolume.toFixed(1)}/${route.truck.volume_max} m³` +
             (route.totalPoids ? ` | ${route.totalPoids} kg` : '') +
         `</div>` +
             `<div>🛣️ ${route.distance.toFixed(1)} km ${modifiedBadge}</div>` +
@@ -462,6 +505,7 @@ function buildRouteCard(route, index) {
 
     card.querySelector('.btn-edit').addEventListener('click', () => toggleEditRoute(index));
     card.querySelector('.btn-export').addEventListener('click', () => exportRouteCSV(index));
+    card.querySelector('.btn-print-route').addEventListener('click', () => printRoute(index));
 
     card.addEventListener('click', (e) => {
         if (e.target.closest('button, select')) return;
@@ -492,14 +536,25 @@ function buildStopList(route, index) {
         const isFirst = stopIdx === 0;
         const isLast  = stopIdx === route.points.length - 1;
 
+        const item = document.createElement('div');
+
+        // Stop de pause réglementaire
+        if (point.is_break) {
+            item.className = 'stop-item stop-break';
+            item.innerHTML = `<span class="stop-break-label">⏸ Pause réglementaire — 45 min</span>`;
+            container.appendChild(item);
+            return;
+        }
+
         const moveOptions = state.routes
             .map((r, i) => i !== index
                 ? `<option value="${i}">${escapeHtml(r.truck.id)}</option>`
                 : '')
             .join('');
 
-        const item = document.createElement('div');
-        item.className = 'stop-item';
+        const statusClass = point.status ? `stop-${point.status}` : '';
+        item.className = `stop-item ${statusClass}`;
+
         const twLabel = (point.tw_start != null || point.tw_end != null)
             ? `<span class="stop-tw">${point.tw_start != null ? minsToHHMM(point.tw_start) : ''}–${point.tw_end != null ? minsToHHMM(point.tw_end) : ''}</span>`
             : '';
@@ -507,13 +562,26 @@ function buildStopList(route, index) {
             ? `<span class="stop-arrival">↪${minsToHHMM(point.arrival_min)}</span>`
             : '';
 
+        const p = point.priorite ?? 2;
+        const priorityBadge = p === 1
+            ? `<span class="priority-badge priority-urgent">URGENT</span>`
+            : p === 3
+                ? `<span class="priority-badge priority-flexible">FLEX</span>`
+                : '';
+
         item.innerHTML =
             `<span class="stop-order">${stopIdx + 1}</span>` +
+            priorityBadge +
             `<span class="stop-name" title="${escapeHtml(point.nom_client)}">${escapeHtml(point.nom_client)}</span>` +
             twLabel + arrLabel +
             `<span class="stop-vol">${point.volume} m³</span>` +
             (point.poids_kg ? `<span class="stop-poids">${point.poids_kg} kg</span>` : '') +
             `<div class="stop-controls">` +
+                `<span class="status-btns">` +
+                    `<button class="btn-status${point.status === 'delivered' ? ' active' : ''}" data-action="status-delivered" title="Livré">✓</button>` +
+                    `<button class="btn-status${point.status === 'failed'    ? ' active' : ''}" data-action="status-failed"    title="Raté">✗</button>` +
+                    `<button class="btn-status${point.status === 'returned'  ? ' active' : ''}" data-action="status-returned"  title="Retour dépôt">↩</button>` +
+                `</span>` +
                 `<button class="stop-btn" data-action="up"     title="Monter"    ${isFirst ? 'disabled' : ''}>▲</button>` +
                 `<button class="stop-btn" data-action="down"   title="Descendre" ${isLast  ? 'disabled' : ''}>▼</button>` +
                 (moveOptions
@@ -528,6 +596,9 @@ function buildStopList(route, index) {
         item.querySelector('.stop-move')?.addEventListener('change', (e) => {
             const to = parseInt(e.target.value, 10);
             if (!isNaN(to)) moveStop(index, stopIdx, to);
+        });
+        item.querySelectorAll('.btn-status').forEach(btn => {
+            btn.addEventListener('click', () => setStopStatus(index, stopIdx, btn.dataset.action.replace('status-', '')));
         });
 
         container.appendChild(item);
@@ -544,7 +615,12 @@ function buildStopList(route, index) {
     recalcBtn.className = 'btn btn-primary btn-sm';
     recalcBtn.textContent = 'Recalculer l\'itinéraire';
     recalcBtn.addEventListener('click', () => recalculateRoute(index));
+    const printBtn = document.createElement('button');
+    printBtn.className = 'btn btn-outline btn-sm';
+    printBtn.textContent = '🖨 Feuille de route';
+    printBtn.addEventListener('click', () => printRoute(index));
     actions.appendChild(recalcBtn);
+    actions.appendChild(printBtn);
     container.appendChild(actions);
 
     return container;
@@ -771,7 +847,120 @@ function getConfig() {
         serviceTime:  parseFloat(document.getElementById('service-time').value)  || 15,
         startTime:    document.getElementById('start-time').value                || '08:00',
         osrmTimeout:  parseInt(document.getElementById('osrm-timeout').value, 10) || 30,
+        applyBreaks:  document.getElementById('apply-breaks').checked,
     };
+}
+
+// ── Statuts de livraison ──────────────────────────────────────────────
+
+function setStopStatus(routeIndex, stopIndex, status) {
+    const stop = state.routes[routeIndex].points[stopIndex];
+    stop.status = stop.status === status ? null : status;
+    renderLegend();
+}
+
+// ── Export feuille de route ───────────────────────────────────────────
+
+function printRoute(index) {
+    const route  = state.routes[index];
+    const config = getConfig();
+
+    // Soumission d'un formulaire vers _blank : navigation réelle, CSP propre, pas de popup blocker
+    const form  = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/api/export/route';
+    form.target = '_blank';
+    form.style.display = 'none';
+
+    const input = document.createElement('input');
+    input.type  = 'hidden';
+    input.name  = 'payload';
+    input.value = JSON.stringify({ route, config });
+
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+    setTimeout(() => document.body.removeChild(form), 1000);
+}
+
+// ── Modèles de tournée (localStorage) ────────────────────────────────
+
+const TEMPLATES_KEY = 'tourneo_templates';
+
+function getTemplates() {
+    try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '[]'); }
+    catch { return []; }
+}
+
+function saveTemplate(name) {
+    if (!name.trim()) { alert('Donnez un nom au modèle.'); return; }
+    const templates = getTemplates();
+    const existing  = templates.findIndex(t => t.name === name.trim());
+    const tpl = {
+        name:     name.trim(),
+        agencies: state.agencies,
+        trucks:   state.trucks,
+        clients:  state.clients,
+        savedAt:  new Date().toLocaleDateString('fr-FR'),
+    };
+    if (existing >= 0) templates[existing] = tpl;
+    else templates.unshift(tpl);
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates.slice(0, 10)));
+    renderTemplates();
+}
+
+function loadTemplate(name) {
+    const tpl = getTemplates().find(t => t.name === name);
+    if (!tpl) return;
+    if (!confirm(`Charger le modèle "${name}" ? L'état actuel sera remplacé.`)) return;
+    state.agencies     = tpl.agencies;
+    state.trucks       = tpl.trucks;
+    state.clients      = tpl.clients;
+    state.routes       = [];
+    state.unassigned   = [];
+    state.editingRoute = null;
+    document.getElementById('agency-count').textContent = state.agencies.length;
+    document.getElementById('truck-count').textContent  = state.trucks.length;
+    document.getElementById('client-count').textContent = state.clients.length;
+    document.getElementById('generate-btn').disabled  = state.clients.length === 0;
+    document.getElementById('view-data-btn').disabled = state.clients.length === 0;
+    refreshMarkers();
+    renderAll();
+}
+
+function deleteTemplate(name) {
+    if (!confirm(`Supprimer le modèle "${name}" ?`)) return;
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(getTemplates().filter(t => t.name !== name)));
+    renderTemplates();
+}
+
+function renderTemplates() {
+    const list = document.getElementById('templates-list');
+    if (!list) return;
+    const templates = getTemplates();
+    if (templates.length === 0) {
+        list.innerHTML = '<p class="no-templates">Aucun modèle enregistré.</p>';
+        return;
+    }
+
+    list.innerHTML = '';
+    templates.forEach(t => {
+        const item = document.createElement('div');
+        item.className = 'template-item';
+        item.innerHTML =
+            `<span class="template-info">` +
+                `<strong>${escapeHtml(t.name)}</strong>` +
+                `<small>${escapeHtml(t.savedAt)} — ${t.agencies.length} agence(s), ${t.clients.length} client(s)</small>` +
+            `</span>` +
+            `<span class="template-actions">` +
+                `<button class="btn-sm tpl-load">Charger</button>` +
+                `<button class="btn-sm btn-danger tpl-delete">✕</button>` +
+            `</span>`;
+
+        item.querySelector('.tpl-load').addEventListener('click',   () => loadTemplate(t.name));
+        item.querySelector('.tpl-delete').addEventListener('click', () => deleteTemplate(t.name));
+        list.appendChild(item);
+    });
 }
 
 function minsToHHMM(mins) {

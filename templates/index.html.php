@@ -103,11 +103,27 @@
                         <input type="number" id="osrm-timeout" value="30" min="10" max="120" step="5">
                     </div>
                 </div>
+                <div class="config-checkbox">
+                    <input type="checkbox" id="apply-breaks">
+                    <label for="apply-breaks">Pauses réglementaires EU (4h30 max)</label>
+                </div>
+            </div>
+
+            <div class="section" id="templates-section">
+                <div class="section-label">
+                    <span class="section-num">04 —</span>
+                    <span class="section-title">Modèles</span>
+                </div>
+                <div id="templates-list"></div>
+                <div class="template-save-row">
+                    <input type="text" id="template-name" placeholder="Nom du modèle…" maxlength="50">
+                    <button id="save-template-btn" class="btn btn-outline btn-sm">Enregistrer</button>
+                </div>
             </div>
 
             <div class="section">
                 <div class="section-label">
-                    <span class="section-num">04 —</span>
+                    <span class="section-num">05 —</span>
                     <span class="section-title">Actions</span>
                 </div>
                 <button id="view-data-btn" class="btn btn-outline" disabled>Voir les données</button>
@@ -121,7 +137,7 @@
 
             <div class="section" id="legend-section" hidden>
                 <div class="section-label">
-                    <span class="section-num">05 —</span>
+                    <span class="section-num">06 —</span>
                     <span class="section-title">Légende &amp; Coûts</span>
                     <button id="export-all-btn" class="btn-export" title="Exporter toutes les tournées en CSV">📥 Tout</button>
                 </div>
@@ -131,13 +147,22 @@
             </div>
 
             <p class="hint">
-                Flotte : type, id_nom, adresse, ville, code_postal, volume_max, consommation_l100km, <em>poids_max</em><br>
-                Commandes : nom_client, adresse, ville, code_postal, volume_m3, poids_kg, <em>heure_debut</em>, <em>heure_fin</em>
+                Flotte : type, id_nom, adresse, ville, code_postal, volume_max, consommation_l100km, <em>poids_max</em>, <em>chauffeur</em>, <em>tel_chauffeur</em>, <em>heure_debut/fin_chauffeur</em><br>
+                Commandes : nom_client, adresse, ville, code_postal, volume_m3, poids_kg, <em>heure_debut</em>, <em>heure_fin</em>, <em>priorite (1/2/3)</em>
             </p>
 
         </aside>
 
-        <main id="map" aria-label="Carte des tournées"></main>
+        <div class="main-content">
+            <div id="dashboard" hidden>
+                <div class="kpi-card"><span class="kpi-value" id="kpi-trucks">0/0</span><span class="kpi-label">Camions</span></div>
+                <div class="kpi-card"><span class="kpi-value" id="kpi-fill">0%</span><span class="kpi-label">Remplissage moy.</span></div>
+                <div class="kpi-card"><span class="kpi-value" id="kpi-distance">0 km</span><span class="kpi-label">Distance totale</span></div>
+                <div class="kpi-card"><span class="kpi-value" id="kpi-cost">0 €</span><span class="kpi-label">Coût total</span></div>
+                <div class="kpi-card"><span class="kpi-value" id="kpi-stops">0/0</span><span class="kpi-label">Stops assignés</span></div>
+            </div>
+            <main id="map" aria-label="Carte des tournées"></main>
+        </div>
     </div>
 
     <div id="data-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>

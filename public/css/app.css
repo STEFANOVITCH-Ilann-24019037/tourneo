@@ -50,10 +50,18 @@ html, body {
     overflow: hidden;
 }
 
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
 #map {
     flex: 1;
     min-width: 0;
-    height: 100%;
 }
 
 /* ── Sidebar ─────────────────────────────────────────────────────────── */
@@ -969,5 +977,201 @@ tr:hover td { background: var(--surface-2); }
     .sidebar.active          { left: 0; }
     .mobile-overlay.active   { display: block; }
     .app-container           { flex-direction: column; }
+    .main-content            { height: auto; flex: 1; }
     #map                     { width: 100%; height: 100vh; }
 }
+
+/* ── Dashboard KPIs ──────────────────────────────────────────────────── */
+
+#dashboard {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+}
+
+.kpi-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+    padding: 6px 14px;
+    background: var(--surface-3);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+}
+
+.kpi-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: var(--font-mono);
+}
+
+.kpi-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 1px;
+}
+
+/* ── Conducteur dans la carte tournée ────────────────────────────────── */
+
+.driver-info {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: 2px 0 4px 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+}
+
+/* ── Badges priorité ─────────────────────────────────────────────────── */
+
+.priority-badge {
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 4px;
+    letter-spacing: 0.03em;
+}
+
+.priority-urgent   { background: #e74c3c; color: #fff; }
+.priority-flexible { background: #27ae60; color: #fff; }
+
+/* ── Statuts de livraison ─────────────────────────────────────────────── */
+
+.btn-print-route {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.btn-print-route:hover { color: var(--accent); border-color: var(--accent); }
+
+.status-btns { display: inline-flex; gap: 2px; margin-right: 4px; }
+
+.btn-status {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 3px;
+    padding: 1px 5px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    opacity: 0.6;
+    transition: opacity 0.15s, background 0.15s;
+}
+
+.btn-status:hover  { opacity: 1; }
+.btn-status.active { opacity: 1; font-weight: 700; }
+
+.btn-status[data-action="status-delivered"].active { background: rgba(16,185,129,0.2); border-color: #10b981; color: #10b981; }
+.btn-status[data-action="status-failed"].active    { background: rgba(239,68,68,0.2);  border-color: #ef4444; color: #ef4444; }
+.btn-status[data-action="status-returned"].active  { background: rgba(245,158,11,0.2); border-color: var(--accent); color: var(--accent); }
+
+.stop-delivered { opacity: 0.55; }
+.stop-failed    { opacity: 0.55; text-decoration: line-through; }
+.stop-returned  { opacity: 0.55; }
+
+/* ── Stop pause réglementaire ────────────────────────────────────────── */
+
+.stop-break {
+    background: rgba(245,158,11,0.08);
+    border: 1px dashed var(--accent-dim);
+    border-radius: 4px;
+    padding: 4px 8px;
+    margin: 2px 0;
+}
+
+.stop-break-label {
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-family: var(--font-mono);
+}
+
+/* ── Config checkbox ─────────────────────────────────────────────────── */
+
+.config-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.config-checkbox input[type="checkbox"] { accent-color: var(--accent); }
+
+/* ── Modèles de tournée ──────────────────────────────────────────────── */
+
+.template-save-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.template-save-row input {
+    flex: 1;
+    background: var(--surface-3);
+    border: 1px solid var(--border-light);
+    border-radius: 4px;
+    padding: 4px 8px;
+    color: var(--text);
+    font-size: 0.78rem;
+}
+
+.template-save-row input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.template-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 4px;
+    gap: 8px;
+}
+
+.template-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.template-info strong { font-size: 0.8rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.template-info small  { font-size: 0.68rem; color: var(--text-muted); }
+
+.template-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+.btn-sm {
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    border: 1px solid var(--border-light);
+    border-radius: 3px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.btn-sm:hover     { color: var(--text); border-color: var(--text-muted); }
+.btn-sm.btn-danger { border-color: rgba(239,68,68,0.4); color: rgba(239,68,68,0.7); }
+.btn-sm.btn-danger:hover { color: #ef4444; border-color: #ef4444; }
+
+.no-templates { font-size: 0.75rem; color: var(--text-muted); text-align: center; padding: 8px 0; }
