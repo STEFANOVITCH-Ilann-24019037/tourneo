@@ -159,6 +159,7 @@ class ApiController
                     'ville'       => trim($row['ville'] ?? ''),
                     'code_postal' => trim($row['code_postal'] ?? ''),
                     'volume'      => (float) ($row['volume_m3'] ?? $row['volume'] ?? 1),
+                    'poids_kg'    => (float) ($row['poids_kg'] ?? $row['poids'] ?? 0),
                     'lat'         => $c['lat'],
                     'lon'         => $c['lon'],
                 ];

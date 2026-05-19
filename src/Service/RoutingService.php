@@ -60,11 +60,14 @@ class RoutingService
                 array_splice($unvisited, $idx, 1);
             }
 
+            $totalPoids = array_sum(array_column($points, 'poids_kg'));
+
             $routes[] = [
                 'truck'       => $truck,
                 'agency'      => $depot,
                 'points'      => $points,
                 'totalVolume' => $totalVolume,
+                'totalPoids'  => $totalPoids,
             ];
         }
 

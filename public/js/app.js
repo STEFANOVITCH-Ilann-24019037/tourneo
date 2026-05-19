@@ -23,7 +23,7 @@ let routesLayer;
 function initMap() {
     map = L.map('map').setView([46.603354, 1.888334], 6);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 20,
@@ -348,7 +348,8 @@ function renderMapState() {
                 `<b>${escapeHtml(point.nom_client)}</b><br>` +
                 `Camion : ${escapeHtml(route.truck.id)}<br>` +
                 `Ordre : ${order + 1}<br>` +
-                `Volume : ${point.volume} m³`
+                `Volume : ${point.volume} m³` +
+                (point.poids_kg ? `<br>Poids : ${point.poids_kg} kg` : '')
             )
             .addTo(markersLayer);
         });
@@ -377,7 +378,8 @@ function refreshMarkers() {
         })
         .bindPopup(
             `<b>${escapeHtml(client.nom_client)}</b><br>` +
-            `${escapeHtml(client.adresse)}<br>Volume : ${client.volume} m³`
+            `${escapeHtml(client.adresse)}<br>Volume : ${client.volume} m³` +
+            (client.poids_kg ? `<br>Poids : ${client.poids_kg} kg` : '')
         )
         .addTo(markersLayer);
     });
@@ -424,7 +426,9 @@ function buildRouteCard(route, index) {
             `<button class="btn-export" title="Exporter en CSV">📥</button>` +
         `</div>` +
         `<div class="route-stats">` +
-            `<div>📦 ${route.points.length} pts | ${route.totalVolume}/${route.truck.volume_max} m³</div>` +
+            `<div>📦 ${route.points.length} pts | ${route.totalVolume.toFixed(1)}/${route.truck.volume_max} m³` +
+            (route.totalPoids ? ` | ${route.totalPoids} kg` : '') +
+        `</div>` +
             `<div>🛣️ ${route.distance.toFixed(1)} km ${modifiedBadge}</div>` +
             `<div>⏱️ ${hours}h ${minutes}min</div>` +
             `<div>⛽ ${consoLabel}</div>` +
@@ -472,6 +476,7 @@ function buildStopList(route, index) {
             `<span class="stop-order">${stopIdx + 1}</span>` +
             `<span class="stop-name" title="${escapeHtml(point.nom_client)}">${escapeHtml(point.nom_client)}</span>` +
             `<span class="stop-vol">${point.volume} m³</span>` +
+            (point.poids_kg ? `<span class="stop-poids">${point.poids_kg} kg</span>` : '') +
             `<div class="stop-controls">` +
                 `<button class="stop-btn" data-action="up"     title="Monter"    ${isFirst ? 'disabled' : ''}>▲</button>` +
                 `<button class="stop-btn" data-action="down"   title="Descendre" ${isLast  ? 'disabled' : ''}>▼</button>` +
@@ -540,6 +545,7 @@ function buildUnassignedSection() {
         item.innerHTML =
             `<span class="stop-name" title="${escapeHtml(point.nom_client)}">${escapeHtml(point.nom_client)}</span>` +
             `<span class="stop-vol">${point.volume} m³</span>` +
+            (point.poids_kg ? `<span class="stop-poids">${point.poids_kg} kg</span>` : '') +
             `<select class="stop-assign" title="Assigner à une tournée">` +
                 `<option value="">+ Tournée</option>${routeOptions}` +
             `</select>`;
@@ -607,7 +613,7 @@ function exportRouteCSV(index) {
     if (!route) return;
 
     const allPoints = [route.agency, ...route.points, route.agency];
-    const rows = [['ordre', 'nom', 'adresse', 'ville', 'code_postal', 'volume']];
+    const rows = [['ordre', 'nom', 'adresse', 'ville', 'code_postal', 'volume_m3', 'poids_kg']];
 
     allPoints.forEach((point, order) => {
         rows.push([
@@ -617,6 +623,7 @@ function exportRouteCSV(index) {
             point.ville       ?? '',
             point.code_postal ?? '',
             point.volume      ?? 0,
+            point.poids_kg    ?? 0,
         ]);
     });
 
@@ -627,7 +634,7 @@ function exportRouteCSV(index) {
 function exportUnassignedCSV() {
     if (state.unassigned.length === 0) return;
 
-    const rows = [['nom_client', 'adresse', 'ville', 'code_postal', 'volume_m3']];
+    const rows = [['nom_client', 'adresse', 'ville', 'code_postal', 'volume_m3', 'poids_kg']];
     state.unassigned.forEach(point => {
         rows.push([
             point.nom_client  ?? '',
@@ -635,6 +642,7 @@ function exportUnassignedCSV() {
             point.ville       ?? '',
             point.code_postal ?? '',
             point.volume      ?? 0,
+            point.poids_kg    ?? 0,
         ]);
     });
 

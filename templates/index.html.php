@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tournéo – Planificateur de Tournées</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="/css/app.css">
 </head>
@@ -20,24 +24,51 @@
     <div class="app-container">
         <aside class="sidebar" aria-label="Panneau de contrôle">
 
-            <h1>Tournéo <span>MVP</span></h1>
-
-            <div class="section">
-                <label for="fleet-file" class="btn btn-outline">Importer Flotte</label>
-                <input type="file" id="fleet-file" name="fleet_file" accept=".csv">
-                <p class="stats">
-                    Agences&nbsp;: <span id="agency-count">0</span> | Camions&nbsp;: <span id="truck-count">0</span>
-                </p>
+            <div class="sidebar-brand">
+                <h1>TOURNÉ<span class="brand-accent">O</span><span class="mvp-tag">MVP</span></h1>
+                <p class="brand-tagline">// planification de tournées</p>
             </div>
 
             <div class="section">
-                <label for="orders-file" class="btn btn-outline">Importer Commandes</label>
+                <div class="section-label">
+                    <span class="section-num">01 —</span>
+                    <span class="section-title">Flotte</span>
+                </div>
+                <label for="fleet-file" class="btn btn-outline">Importer Flotte CSV</label>
+                <input type="file" id="fleet-file" name="fleet_file" accept=".csv">
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-val" id="agency-count">0</span>
+                        <span class="stat-key">Agences</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-val" id="truck-count">0</span>
+                        <span class="stat-key">Camions</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-label">
+                    <span class="section-num">02 —</span>
+                    <span class="section-title">Commandes</span>
+                </div>
+                <label for="orders-file" class="btn btn-outline">Importer Commandes CSV</label>
                 <input type="file" id="orders-file" name="orders_file" accept=".csv">
-                <p class="stats">Commandes chargées&nbsp;: <span id="client-count">0</span></p>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-val" id="client-count">0</span>
+                        <span class="stat-key">Commandes chargées</span>
+                    </div>
+                </div>
                 <div id="geocoding-log" class="log-container" hidden></div>
             </div>
 
             <div class="section">
+                <div class="section-label">
+                    <span class="section-num">03 —</span>
+                    <span class="section-title">Configuration des Coûts</span>
+                </div>
                 <p class="config-title">Configuration des Coûts</p>
                 <div class="config-grid">
                     <div class="config-item">
@@ -56,11 +87,19 @@
             </div>
 
             <div class="section">
+                <div class="section-label">
+                    <span class="section-num">04 —</span>
+                    <span class="section-title">Actions</span>
+                </div>
                 <button id="view-data-btn" class="btn btn-outline" disabled>Voir les données</button>
                 <button id="generate-btn" class="btn btn-primary" disabled>Générer les tournées</button>
             </div>
 
             <div class="section" id="legend-section" hidden>
+                <div class="section-label">
+                    <span class="section-num">05 —</span>
+                    <span class="section-title">Légende &amp; Coûts</span>
+                </div>
                 <p class="legend-title">Légende &amp; Coûts</p>
                 <div id="route-legend"></div>
                 <div id="total-summary" class="total-summary"></div>
@@ -68,7 +107,7 @@
 
             <p class="hint">
                 Flotte : type, id_nom, adresse, ville, code_postal, volume_max, consommation_l100km<br>
-                Commandes : nom_client, adresse, ville, code_postal, volume_m3
+                Commandes : nom_client, adresse, ville, code_postal, volume_m3, poids_kg
             </p>
 
         </aside>
