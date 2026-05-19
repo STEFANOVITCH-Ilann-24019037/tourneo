@@ -890,6 +890,69 @@ tr:hover td { background: var(--surface-2); }
     backdrop-filter: blur(3px);
 }
 
+/* ── Config sub-title ────────────────────────────────────────────────── */
+
+.config-title { display: none; }
+
+.config-title-sep {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.56rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 14px 0 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+/* ── Session actions ─────────────────────────────────────────────────── */
+
+.session-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.session-actions .btn {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+#load-session-file { display: none; }
+
+/* ── Section label with action button ───────────────────────────────── */
+
+.section-label { justify-content: flex-start; }
+.section-label .btn-export { margin-left: auto; }
+
+/* ── Route item click-to-zoom ────────────────────────────────────────── */
+
+.route-item { cursor: pointer; }
+
+/* ── Time window & arrival badges ───────────────────────────────────── */
+
+.stop-tw {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 1px 4px;
+    white-space: nowrap;
+}
+
+.stop-arrival {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    color: var(--success);
+    opacity: 0.85;
+    white-space: nowrap;
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {

@@ -6,19 +6,31 @@ namespace Tourneo\Service;
 
 class RoutingService
 {
-    private const OSRM_URL      = 'https://router.project-osrm.org/route/v1/driving/';
-    private const EARTH_RADIUS  = 6371.0;
-    private const ROUTE_TIMEOUT = 30;
+    private const OSRM_URL         = 'https://router.project-osrm.org/route/v1/driving/';
+    private const EARTH_RADIUS     = 6371.0;
+    private const AVG_SPEED_KMH    = 60.0;
+    private const SERVICE_TIME_MIN = 15.0;
+
+    private int $routeTimeout = 30;
 
     /**
      * Algorithme glouton du plus proche voisin.
      * Retourne routes assignées, nombre de non-affectés et les items non-affectés.
      */
-    public function generateRoutes(array $agencies, array $trucks, array $clients): array
+    public function setRouteTimeout(int $seconds): void
+    {
+        $this->routeTimeout = max(10, min(120, $seconds));
+    }
+
+    public function generateRoutes(array $agencies, array $trucks, array $clients, array $config = []): array
     {
         $unvisited       = array_values($clients);
         $availableTrucks = $trucks;
         $routes          = [];
+
+        $avgSpeed    = max(10.0, (float) ($config['avgSpeed']    ?? self::AVG_SPEED_KMH));
+        $serviceTime = max(0.0,  (float) ($config['serviceTime'] ?? self::SERVICE_TIME_MIN));
+        $startTime   = $this->parseStartTime((string) ($config['startTime'] ?? '08:00'));
 
         while ($unvisited !== [] && $availableTrucks !== []) {
             $truck = array_shift($availableTrucks);
@@ -38,29 +50,44 @@ class RoutingService
                 break;
             }
 
-            $points      = [];
-            $totalVolume = 0.0;
-            $currentPos  = $depot;
+            $points         = [];
+            $totalVolume    = 0.0;
+            $totalPoids     = 0.0;
+            $currentPos     = $depot;
+            $poidsMax       = (float) ($truck['poids_max'] ?? 0);
+            $currentTimeMin = $startTime;
 
             while ($unvisited !== []) {
                 $capaciteRestante = (float)($truck['volume_max'] ?? 100) - $totalVolume;
 
-                $result = $this->findNearestFitting($currentPos, $unvisited, $capaciteRestante);
+                $result = $this->findNearestFitting(
+                    $currentPos, $unvisited, $capaciteRestante,
+                    $poidsMax, $totalPoids,
+                    $currentTimeMin, $avgSpeed
+                );
 
                 if ($result === null) {
                     break;
                 }
 
-                ['index' => $idx, 'item' => $nearest] = $result;
+                ['index' => $idx, 'item' => $nearest, 'arrival_min' => $arrivalMin] = $result;
                 $volume = (float) ($nearest['volume'] ?? 0);
+                $poids  = (float) ($nearest['poids_kg'] ?? 0);
+
+                $nearest['arrival_min'] = $arrivalMin;
+
+                // Si arrivée avant le début du créneau, on attend sur place
+                $departureMin   = max($arrivalMin, (int) ($nearest['tw_start'] ?? $arrivalMin));
+                $currentTimeMin = $departureMin + $serviceTime;
 
                 $points[]    = $nearest;
                 $totalVolume += $volume;
+                $totalPoids  += $poids;
                 $currentPos  = $nearest;
                 array_splice($unvisited, $idx, 1);
             }
 
-            $totalPoids = array_sum(array_column($points, 'poids_kg'));
+            $points = $this->twoOptImprove($depot, $points);
 
             $routes[] = [
                 'truck'       => $truck,
@@ -98,7 +125,7 @@ class RoutingService
             $ch = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => self::ROUTE_TIMEOUT,
+                CURLOPT_TIMEOUT        => $this->routeTimeout,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_USERAGENT      => 'Tourneo/1.0',
             ]);
@@ -159,7 +186,7 @@ class RoutingService
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => self::ROUTE_TIMEOUT,
+            CURLOPT_TIMEOUT        => $this->routeTimeout,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_USERAGENT      => 'Tourneo/1.0',
         ]);
@@ -194,22 +221,90 @@ class RoutingService
         return self::OSRM_URL . $coords . '?overview=full&geometries=geojson';
     }
 
-    private function findNearestFitting(array $origin, array $candidates, float $maxVolume): ?array
+    private function parseStartTime(string $value): float
     {
+        if (preg_match('/^(\d{1,2}):(\d{2})$/', trim($value), $m)) {
+            return (float) $m[1] * 60.0 + (float) $m[2];
+        }
+        return 480.0; // 08:00 par défaut
+    }
+
+    private function twoOptImprove(array $depot, array $points): array
+    {
+        $n = count($points);
+        if ($n < 3) {
+            return $points;
+        }
+
+        $improved = true;
+        while ($improved) {
+            $improved = false;
+            for ($i = 0; $i < $n - 1; $i++) {
+                for ($j = $i + 1; $j < $n; $j++) {
+                    $prevI = $i === 0 ? $depot : $points[$i - 1];
+                    $nextJ = $j === $n - 1 ? $depot : $points[$j + 1];
+
+                    $dBefore = $this->haversine(
+                        (float) $prevI['lat'], (float) $prevI['lon'],
+                        (float) $points[$i]['lat'], (float) $points[$i]['lon']
+                    ) + $this->haversine(
+                        (float) $points[$j]['lat'], (float) $points[$j]['lon'],
+                        (float) $nextJ['lat'], (float) $nextJ['lon']
+                    );
+
+                    $dAfter = $this->haversine(
+                        (float) $prevI['lat'], (float) $prevI['lon'],
+                        (float) $points[$j]['lat'], (float) $points[$j]['lon']
+                    ) + $this->haversine(
+                        (float) $points[$i]['lat'], (float) $points[$i]['lon'],
+                        (float) $nextJ['lat'], (float) $nextJ['lon']
+                    );
+
+                    if ($dAfter < $dBefore - 0.001) {
+                        $segment = array_slice($points, $i, $j - $i + 1);
+                        array_splice($points, $i, $j - $i + 1, array_reverse($segment));
+                        $improved = true;
+                    }
+                }
+            }
+        }
+
+        return $points;
+    }
+
+    private function findNearestFitting(
+        array $origin, array $candidates, float $maxVolume,
+        float $maxPoids = 0.0, float $currentPoids = 0.0,
+        float $currentTimeMin = 0.0, float $avgSpeedKmh = self::AVG_SPEED_KMH
+    ): ?array {
         $minDist    = PHP_FLOAT_MAX;
         $nearestIdx = null;
+        $nearestArr = 0.0;
 
         foreach ($candidates as $idx => $candidate) {
             if ((float) ($candidate['volume'] ?? 0) > $maxVolume) {
                 continue;
             }
-            $dist = $this->haversine(
+            if ($maxPoids > 0 && $currentPoids + (float) ($candidate['poids_kg'] ?? 0) > $maxPoids) {
+                continue;
+            }
+
+            $dist       = $this->haversine(
                 (float) $origin['lat'], (float) $origin['lon'],
                 (float) $candidate['lat'], (float) $candidate['lon']
             );
+            $arrivalMin = $currentTimeMin + ($dist / $avgSpeedKmh) * 60.0;
+
+            // Contrainte dure : hors créneau de livraison → skip
+            $twEnd = $candidate['tw_end'] ?? null;
+            if ($twEnd !== null && $arrivalMin > (float) $twEnd) {
+                continue;
+            }
+
             if ($dist < $minDist) {
                 $minDist    = $dist;
                 $nearestIdx = $idx;
+                $nearestArr = $arrivalMin;
             }
         }
 
@@ -217,7 +312,7 @@ class RoutingService
             return null;
         }
 
-        return ['index' => $nearestIdx, 'item' => $candidates[$nearestIdx]];
+        return ['index' => $nearestIdx, 'item' => $candidates[$nearestIdx], 'arrival_min' => (int) round($nearestArr)];
     }
 
     private function findNearest(array $origin, array $candidates): array

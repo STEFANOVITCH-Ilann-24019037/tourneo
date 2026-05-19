@@ -56,6 +56,53 @@ class GeocodingService
             return [];
         }
 
+        // Résoudre les hits depuis le cache session
+        $results      = array_fill(0, count($items), ['lat' => null, 'lon' => null]);
+        $uncachedIdx  = [];
+        $uncachedItems = [];
+
+        foreach ($items as $i => $item) {
+            $key = $this->cacheKey($item);
+            if (isset($_SESSION['geocache'][$key])) {
+                $results[$i] = $_SESSION['geocache'][$key];
+            } else {
+                $uncachedIdx[]   = $i;
+                $uncachedItems[] = $item;
+            }
+        }
+
+        if ($uncachedItems === []) {
+            return $results;
+        }
+
+        $fresh = $this->geocodeBatchRaw($uncachedItems);
+
+        foreach ($uncachedIdx as $batchPos => $origIdx) {
+            $coord = $fresh[$batchPos] ?? ['lat' => null, 'lon' => null];
+            $results[$origIdx] = $coord;
+            if ($coord['lat'] !== null) {
+                $key = $this->cacheKey($items[$origIdx]);
+                $_SESSION['geocache'][$key] = $coord;
+            }
+        }
+
+        return $results;
+    }
+
+    private function cacheKey(array $item): string
+    {
+        $raw = strtolower(trim(
+            ($item['adresse'] ?? '') . '|' . ($item['code_postal'] ?? '') . '|' . ($item['ville'] ?? '')
+        ));
+        return hash('sha256', $raw);
+    }
+
+    private function geocodeBatchRaw(array $items): array
+    {
+        if ($items === []) {
+            return [];
+        }
+
         $csvContent = "adresse,code_postal,ville\n";
         foreach ($items as $item) {
             $csvContent .= implode(',', [

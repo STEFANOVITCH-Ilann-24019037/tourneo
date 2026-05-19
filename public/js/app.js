@@ -74,11 +74,24 @@ function setupUI() {
     document.getElementById('fleet-file').addEventListener('change', onFleetUpload);
     document.getElementById('orders-file').addEventListener('change', onOrdersUpload);
     document.getElementById('generate-btn').addEventListener('click', onGenerate);
+    document.getElementById('save-session-btn').addEventListener('click', exportSession);
+    document.getElementById('load-session-file').addEventListener('change', (e) => {
+        if (e.target.files[0]) importSession(e.target.files[0]);
+        e.target.value = '';
+    });
+    document.getElementById('export-all-btn').addEventListener('click', exportAllRoutesCSV);
 }
 
 // ── Uploads ───────────────────────────────────────────────────────────
 
+function confirmReset(type) {
+    if (state.routes.length === 0 && state.clients.length === 0 && state.agencies.length === 0) return true;
+    return confirm(`Des données sont déjà chargées. Importer un nouveau fichier ${type} réinitialisera l'état. Continuer ?`);
+}
+
 async function onFleetUpload(event) {
+    if (!confirmReset('flotte')) { event.target.value = ''; return; }
+
     const file = event.target.files[0];
     if (!file) return;
 
@@ -101,6 +114,8 @@ async function onFleetUpload(event) {
 }
 
 async function onOrdersUpload(event) {
+    if (!confirmReset('commandes')) { event.target.value = ''; return; }
+
     const file = event.target.files[0];
     if (!file) return;
 
@@ -111,16 +126,18 @@ async function onOrdersUpload(event) {
     logEl.hidden = false;
     logEl.innerHTML = '';
 
-    showLoading('Géocodage des commandes…');
+    const rawText  = await file.text();
+    const lineCount = Math.max(0, rawText.split('\n').filter(l => l.trim()).length - 1);
+    showLoading(`Géocodage de ${lineCount} adresse${lineCount > 1 ? 's' : ''}…`);
     try {
         const data = await apiPost('/api/orders', formData);
         state.clients = data.clients;
 
+        const successCount = data.clients.length;
+        addLog(`${successCount} / ${lineCount} adresses géocodées avec succès`, successCount < lineCount);
+
         data.logs.forEach(({ success, client }) => {
-            addLog(
-                success ? `Succès : ${client}` : `Échec : ${client} (adresse non trouvée)`,
-                !success
-            );
+            if (!success) addLog(`Échec : ${client} (adresse non trouvée)`, true);
         });
 
         document.getElementById('client-count').textContent = state.clients.length;
@@ -349,7 +366,11 @@ function renderMapState() {
                 `Camion : ${escapeHtml(route.truck.id)}<br>` +
                 `Ordre : ${order + 1}<br>` +
                 `Volume : ${point.volume} m³` +
-                (point.poids_kg ? `<br>Poids : ${point.poids_kg} kg` : '')
+                (point.poids_kg ? `<br>Poids : ${point.poids_kg} kg` : '') +
+                (point.arrival_min != null ? `<br>Arrivée : ${minsToHHMM(point.arrival_min)}` : '') +
+                ((point.tw_start != null || point.tw_end != null)
+                    ? `<br>Créneau : ${point.tw_start != null ? minsToHHMM(point.tw_start) : ''}–${point.tw_end != null ? minsToHHMM(point.tw_end) : ''}`
+                    : '')
             )
             .addTo(markersLayer);
         });
@@ -442,6 +463,13 @@ function buildRouteCard(route, index) {
     card.querySelector('.btn-edit').addEventListener('click', () => toggleEditRoute(index));
     card.querySelector('.btn-export').addEventListener('click', () => exportRouteCSV(index));
 
+    card.addEventListener('click', (e) => {
+        if (e.target.closest('button, select')) return;
+        const pts = [route.agency, ...route.points];
+        if (!pts.length) return;
+        map.fitBounds(L.latLngBounds(pts.map(p => [p.lat, p.lon])).pad(0.15));
+    });
+
     return card;
 }
 
@@ -472,9 +500,17 @@ function buildStopList(route, index) {
 
         const item = document.createElement('div');
         item.className = 'stop-item';
+        const twLabel = (point.tw_start != null || point.tw_end != null)
+            ? `<span class="stop-tw">${point.tw_start != null ? minsToHHMM(point.tw_start) : ''}–${point.tw_end != null ? minsToHHMM(point.tw_end) : ''}</span>`
+            : '';
+        const arrLabel = point.arrival_min != null
+            ? `<span class="stop-arrival">↪${minsToHHMM(point.arrival_min)}</span>`
+            : '';
+
         item.innerHTML =
             `<span class="stop-order">${stopIdx + 1}</span>` +
             `<span class="stop-name" title="${escapeHtml(point.nom_client)}">${escapeHtml(point.nom_client)}</span>` +
+            twLabel + arrLabel +
             `<span class="stop-vol">${point.volume} m³</span>` +
             (point.poids_kg ? `<span class="stop-poids">${point.poids_kg} kg</span>` : '') +
             `<div class="stop-controls">` +
@@ -590,6 +626,53 @@ function renderDataTable() {
     });
 }
 
+// ── Session save / load ───────────────────────────────────────────────
+
+function exportSession() {
+    const payload = JSON.stringify({
+        version:    1,
+        agencies:   state.agencies,
+        trucks:     state.trucks,
+        clients:    state.clients,
+        routes:     state.routes,
+        unassigned: state.unassigned,
+        config:     getConfig(),
+    }, null, 2);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'session_tourneo.json'; a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importSession(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const d = JSON.parse(e.target.result);
+            if (!d.version) throw new Error('Format invalide');
+            state.agencies   = d.agencies   ?? [];
+            state.trucks     = d.trucks     ?? [];
+            state.clients    = d.clients    ?? [];
+            state.routes     = d.routes     ?? [];
+            state.unassigned = d.unassigned ?? [];
+            state.editingRoute = null;
+
+            document.getElementById('agency-count').textContent = state.agencies.length;
+            document.getElementById('truck-count').textContent  = state.trucks.length;
+            document.getElementById('client-count').textContent = state.clients.length;
+            document.getElementById('generate-btn').disabled  = state.clients.length === 0;
+            document.getElementById('view-data-btn').disabled = state.clients.length === 0;
+
+            refreshMarkers();
+            if (state.routes.length > 0) renderAll();
+        } catch (err) {
+            alert('Fichier de session invalide : ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+}
+
 // ── Export CSV ────────────────────────────────────────────────────────
 
 function arraysToCsv(rows) {
@@ -631,6 +714,34 @@ function exportRouteCSV(index) {
     triggerDownload(arraysToCsv(rows), `tournee_${truckId}.csv`);
 }
 
+function exportAllRoutesCSV() {
+    if (state.routes.length === 0) return;
+
+    const rows = [['tournee', 'camion', 'ordre', 'nom', 'adresse', 'ville', 'code_postal', 'volume_m3', 'poids_kg', 'distance_km', 'duree_h', 'cout_total_eur']];
+
+    state.routes.forEach((route, routeIdx) => {
+        const allPoints = [route.agency, ...route.points, route.agency];
+        allPoints.forEach((point, order) => {
+            rows.push([
+                routeIdx + 1,
+                route.truck.id ?? '',
+                order,
+                point.nom_client  ?? point.id_nom ?? '',
+                point.adresse     ?? '',
+                point.ville       ?? '',
+                point.code_postal ?? '',
+                point.volume      ?? 0,
+                point.poids_kg    ?? 0,
+                order === 0 ? (route.distance?.toFixed(1) ?? '') : '',
+                order === 0 ? (route.duration?.toFixed(2) ?? '') : '',
+                order === 0 ? (route.totalCost?.toFixed(2) ?? '') : '',
+            ]);
+        });
+    });
+
+    triggerDownload(arraysToCsv(rows), 'toutes_les_tournees.csv');
+}
+
 function exportUnassignedCSV() {
     if (state.unassigned.length === 0) return;
 
@@ -653,10 +764,20 @@ function exportUnassignedCSV() {
 
 function getConfig() {
     return {
-        fuelPrice:    parseFloat(document.getElementById('fuel-price').value)  || 1.85,
-        defaultConso: parseFloat(document.getElementById('truck-conso').value) || 15,
-        hourlyRate:   parseFloat(document.getElementById('hourly-rate').value) || 25,
+        fuelPrice:    parseFloat(document.getElementById('fuel-price').value)    || 1.85,
+        defaultConso: parseFloat(document.getElementById('truck-conso').value)   || 15,
+        hourlyRate:   parseFloat(document.getElementById('hourly-rate').value)   || 25,
+        avgSpeed:     parseFloat(document.getElementById('avg-speed').value)     || 60,
+        serviceTime:  parseFloat(document.getElementById('service-time').value)  || 15,
+        startTime:    document.getElementById('start-time').value                || '08:00',
+        osrmTimeout:  parseInt(document.getElementById('osrm-timeout').value, 10) || 30,
     };
+}
+
+function minsToHHMM(mins) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 async function apiPost(url, body, contentType) {

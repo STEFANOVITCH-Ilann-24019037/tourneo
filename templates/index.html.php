@@ -67,9 +67,9 @@
             <div class="section">
                 <div class="section-label">
                     <span class="section-num">03 —</span>
-                    <span class="section-title">Configuration des Coûts</span>
+                    <span class="section-title">Configuration</span>
                 </div>
-                <p class="config-title">Configuration des Coûts</p>
+                <p class="config-title">Coûts</p>
                 <div class="config-grid">
                     <div class="config-item">
                         <label for="fuel-price">Gazole (€/L)</label>
@@ -84,6 +84,25 @@
                         <input type="number" id="hourly-rate" value="25" min="0" step="1">
                     </div>
                 </div>
+                <p class="config-title config-title-sep">Tournées</p>
+                <div class="config-grid">
+                    <div class="config-item">
+                        <label for="avg-speed">Vitesse moy. (km/h)</label>
+                        <input type="number" id="avg-speed" value="60" min="10" max="200" step="5">
+                    </div>
+                    <div class="config-item">
+                        <label for="service-time">Tps livraison (min)</label>
+                        <input type="number" id="service-time" value="15" min="0" max="120" step="5">
+                    </div>
+                    <div class="config-item">
+                        <label for="start-time">Heure de départ</label>
+                        <input type="time" id="start-time" value="08:00">
+                    </div>
+                    <div class="config-item">
+                        <label for="osrm-timeout">Timeout OSRM (s)</label>
+                        <input type="number" id="osrm-timeout" value="30" min="10" max="120" step="5">
+                    </div>
+                </div>
             </div>
 
             <div class="section">
@@ -93,12 +112,18 @@
                 </div>
                 <button id="view-data-btn" class="btn btn-outline" disabled>Voir les données</button>
                 <button id="generate-btn" class="btn btn-primary" disabled>Générer les tournées</button>
+                <div class="session-actions">
+                    <button id="save-session-btn" class="btn btn-outline btn-sm">Sauvegarder session</button>
+                    <label class="btn btn-outline btn-sm" for="load-session-file">Charger session</label>
+                    <input type="file" id="load-session-file" accept=".json" hidden>
+                </div>
             </div>
 
             <div class="section" id="legend-section" hidden>
                 <div class="section-label">
                     <span class="section-num">05 —</span>
                     <span class="section-title">Légende &amp; Coûts</span>
+                    <button id="export-all-btn" class="btn-export" title="Exporter toutes les tournées en CSV">📥 Tout</button>
                 </div>
                 <p class="legend-title">Légende &amp; Coûts</p>
                 <div id="route-legend"></div>
@@ -106,8 +131,8 @@
             </div>
 
             <p class="hint">
-                Flotte : type, id_nom, adresse, ville, code_postal, volume_max, consommation_l100km<br>
-                Commandes : nom_client, adresse, ville, code_postal, volume_m3, poids_kg
+                Flotte : type, id_nom, adresse, ville, code_postal, volume_max, consommation_l100km, <em>poids_max</em><br>
+                Commandes : nom_client, adresse, ville, code_postal, volume_m3, poids_kg, <em>heure_debut</em>, <em>heure_fin</em>
             </p>
 
         </aside>

@@ -19,6 +19,7 @@ class ApiController
     public function handleFleet(): void
     {
         $this->requireMethod('POST');
+        $this->checkRateLimit();
 
         if (!isset($_FILES['fleet_file']) || $_FILES['fleet_file']['error'] !== UPLOAD_ERR_OK) {
             $this->jsonError('Fichier de flotte manquant ou invalide.');
@@ -94,6 +95,7 @@ class ApiController
             $truck = [
                 'id'                  => trim($row['id_nom'] ?? ''),
                 'volume_max'          => (float) ($row['volume_max'] ?? 100),
+                'poids_max'           => (float) ($row['poids_max'] ?? 0),
                 'consommation_l100km' => (float) ($row['consommation_l100km'] ?? 0),
                 'adresse'             => trim($row['adresse'] ?? ''),
                 'ville'               => trim($row['ville'] ?? ''),
@@ -121,6 +123,7 @@ class ApiController
     public function handleOrders(): void
     {
         $this->requireMethod('POST');
+        $this->checkRateLimit();
 
         if (!isset($_FILES['orders_file']) || $_FILES['orders_file']['error'] !== UPLOAD_ERR_OK) {
             $this->jsonError('Fichier de commandes manquant ou invalide.');
@@ -160,6 +163,8 @@ class ApiController
                     'code_postal' => trim($row['code_postal'] ?? ''),
                     'volume'      => (float) ($row['volume_m3'] ?? $row['volume'] ?? 1),
                     'poids_kg'    => (float) ($row['poids_kg'] ?? $row['poids'] ?? 0),
+                    'tw_start'    => $this->parseTime($row['heure_debut'] ?? ''),
+                    'tw_end'      => $this->parseTime($row['heure_fin']   ?? ''),
                     'lat'         => $c['lat'],
                     'lon'         => $c['lon'],
                 ];
@@ -175,6 +180,7 @@ class ApiController
     public function handleGenerate(): void
     {
         $this->requireMethod('POST');
+        $this->checkRateLimit();
 
         $input = json_decode(file_get_contents('php://input'), true);
 
@@ -191,11 +197,22 @@ class ApiController
             $this->jsonError('Données manquantes : camions et commandes sont requis.');
         }
 
+        if (count($agencies) > 20)  $this->jsonError('Maximum 20 agences autorisées.', 422);
+        if (count($trucks)   > 50)  $this->jsonError('Maximum 50 camions autorisés.', 422);
+        if (count($clients)  > 500) $this->jsonError('Maximum 500 commandes autorisées.', 422);
+
+        $this->validateCoords($agencies, 'Agence');
+        $this->validateCoords(array_filter($clients, fn($c) => ($c['lat'] ?? null) !== null), 'Client');
+
         $fuelPrice    = (float) ($config['fuelPrice']    ?? 1.85);
         $defaultConso = (float) ($config['defaultConso'] ?? 15.0);
         $hourlyRate   = (float) ($config['hourlyRate']   ?? 25.0);
 
-        $result    = $this->routingService->generateRoutes($agencies, $trucks, $clients);
+        if (isset($config['osrmTimeout'])) {
+            $this->routingService->setRouteTimeout((int) $config['osrmTimeout']);
+        }
+
+        $result    = $this->routingService->generateRoutes($agencies, $trucks, $clients, $config);
         $routeData = $this->routingService->fetchRoutesParallel($result['routes']);
 
         foreach ($result['routes'] as $i => &$route) {
@@ -261,6 +278,59 @@ class ApiController
             'laborCost' => $laborCost,
             'totalCost' => $fuelCost + $laborCost,
         ]);
+    }
+
+    private function parseTime(string $value): ?int
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+        if (preg_match('/^(\d{1,2}):(\d{2})$/', $value, $m)) {
+            $h = (int) $m[1];
+            $min = (int) $m[2];
+            if ($h >= 0 && $h <= 23 && $min >= 0 && $min <= 59) {
+                return $h * 60 + $min;
+            }
+        }
+        return null;
+    }
+
+    private function checkRateLimit(): void
+    {
+        $now    = time();
+        $window = 60;
+        $limit  = 30;
+
+        if (!isset($_SESSION['rl_reset']) || $now > $_SESSION['rl_reset']) {
+            $_SESSION['rl_count'] = 0;
+            $_SESSION['rl_reset'] = $now + $window;
+        }
+
+        if ($_SESSION['rl_count'] >= $limit) {
+            $this->jsonError('Trop de requêtes. Veuillez patienter une minute.', 429);
+        }
+
+        $_SESSION['rl_count']++;
+    }
+
+    private function validateCoords(array $items, string $label): void
+    {
+        foreach ($items as $i => $item) {
+            $lat = $item['lat'] ?? null;
+            $lon = $item['lon'] ?? null;
+
+            if (!is_numeric($lat) || !is_numeric($lon)) {
+                $this->jsonError("$label #$i : coordonnées manquantes ou invalides.", 422);
+            }
+
+            $lat = (float) $lat;
+            $lon = (float) $lon;
+
+            if ($lat < -90.0 || $lat > 90.0 || $lon < -180.0 || $lon > 180.0) {
+                $this->jsonError("$label #$i : coordonnées hors plage.", 422);
+            }
+        }
     }
 
     private function requireMethod(string $method): void
