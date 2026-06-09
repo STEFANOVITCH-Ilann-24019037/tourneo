@@ -21,12 +21,14 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
-      - name: Upload Pages artifact
+
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './public'   # ← là où se trouve votre site prêt à être servi
+          path: './public'   # 👈 C'est le dossier à déployer
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
