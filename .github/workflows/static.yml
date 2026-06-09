@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ "main" ]   # ou "master" selon votre branche par défaut
+    branches: [ "main" ]   # si votre branche par défaut est "master", remplacez "main" par "master"
   workflow_dispatch:
 
 permissions:
@@ -24,10 +24,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Upload artifact
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './public'   # 👈 C'est le dossier à déployer
+          path: './public'   # 👈 dossier contenant votre site
 
       - name: Deploy to GitHub Pages
         id: deployment
