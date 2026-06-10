@@ -34,6 +34,7 @@ class RoutingService
         $serviceTime = max(0.0,  (float) ($config['serviceTime'] ?? self::SERVICE_TIME_MIN));
         $startTime   = $this->parseStartTime((string) ($config['startTime'] ?? '08:00'));
         $applyBreaks = (bool) ($config['applyBreaks'] ?? false);
+        $algoMode    = (string) ($config['algoMode'] ?? 'standard');
 
         while ($unvisited !== [] && $availableTrucks !== []) {
             $truck = array_shift($availableTrucks);
@@ -114,6 +115,10 @@ class RoutingService
             }
 
             $points = $this->twoOptImprove($depot, $points);
+            if ($algoMode === 'advanced') {
+                $points = $this->orOptImprove($depot, $points);
+                $points = $this->twoOptImprove($depot, $points);
+            }
 
             $routes[] = [
                 'truck'       => $truck,
@@ -253,6 +258,69 @@ class RoutingService
             return (float) $m[1] * 60.0 + (float) $m[2];
         }
         return 480.0; // 08:00 par défaut
+    }
+
+    /**
+     * Or-opt: move chains of 1-3 consecutive stops to better positions.
+     * Combined with 2-opt this gives much better tour quality.
+     */
+    private function orOptImprove(array $depot, array $points): array
+    {
+        $n = count($points);
+        if ($n < 4) {
+            return $points;
+        }
+
+        $improved = true;
+        $passes   = 0;
+        while ($improved && $passes < 50) {
+            $improved = false;
+            $passes++;
+
+            foreach ([1, 2, 3] as $segLen) {
+                for ($i = 0; $i + $segLen <= $n; $i++) {
+                    $segment = array_slice($points, $i, $segLen);
+                    $prev    = $i === 0 ? $depot : $points[$i - 1];
+                    $next    = ($i + $segLen >= $n) ? $depot : $points[$i + $segLen];
+
+                    // Coût actuel : prev->seg[0] + seg[last]->next
+                    $removeGain =
+                        $this->haversine((float)$prev['lat'], (float)$prev['lon'], (float)$segment[0]['lat'], (float)$segment[0]['lon'])
+                      + $this->haversine((float)$segment[$segLen - 1]['lat'], (float)$segment[$segLen - 1]['lon'], (float)$next['lat'], (float)$next['lon'])
+                      - $this->haversine((float)$prev['lat'], (float)$prev['lon'], (float)$next['lat'], (float)$next['lon']);
+
+                    // Cherche meilleur insertion ailleurs
+                    for ($j = 0; $j <= $n - $segLen; $j++) {
+                        if ($j >= $i && $j <= $i + $segLen) continue;
+
+                        // construire points sans le segment courant
+                        $rest = $points;
+                        array_splice($rest, $i, $segLen);
+
+                        // ajuster index j si après i
+                        $jAdj = $j > $i ? $j - $segLen : $j;
+                        if ($jAdj < 0 || $jAdj > count($rest)) continue;
+
+                        $pBefore = $jAdj === 0 ? $depot : $rest[$jAdj - 1];
+                        $pAfter  = $jAdj >= count($rest) ? $depot : $rest[$jAdj];
+
+                        $insertCost =
+                            $this->haversine((float)$pBefore['lat'], (float)$pBefore['lon'], (float)$segment[0]['lat'], (float)$segment[0]['lon'])
+                          + $this->haversine((float)$segment[$segLen - 1]['lat'], (float)$segment[$segLen - 1]['lon'], (float)$pAfter['lat'], (float)$pAfter['lon'])
+                          - $this->haversine((float)$pBefore['lat'], (float)$pBefore['lon'], (float)$pAfter['lat'], (float)$pAfter['lon']);
+
+                        if ($insertCost < $removeGain - 0.001) {
+                            array_splice($rest, $jAdj, 0, $segment);
+                            $points   = $rest;
+                            $improved = true;
+                            break 2;
+                        }
+                    }
+                }
+            }
+        }
+
+        return $points;
     }
 
     private function twoOptImprove(array $depot, array $points): array

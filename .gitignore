@@ -2,3 +2,10 @@ vendor/
 .DS_Store
 .claude/
 *.log
+.env
+.env.*
+*.env
+credentials.json
+*.pem
+*.key
+.credentials
